@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "here.core", "here.core\here
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "here.droid", "here.droid\here.droid.csproj", "{1F2C1CD8-7AFA-4BB2-8A26-CFDEA3146EE6}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MessageSender", "MessageSender\MessageSender.csproj", "{63F3AD98-AAEA-4A4A-9A34-1D73E18E7248}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -23,6 +25,10 @@ Global
 		{1F2C1CD8-7AFA-4BB2-8A26-CFDEA3146EE6}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1F2C1CD8-7AFA-4BB2-8A26-CFDEA3146EE6}.Release|Any CPU.Build.0 = Release|Any CPU
 		{1F2C1CD8-7AFA-4BB2-8A26-CFDEA3146EE6}.Release|Any CPU.Deploy.0 = Release|Any CPU
+		{63F3AD98-AAEA-4A4A-9A34-1D73E18E7248}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{63F3AD98-AAEA-4A4A-9A34-1D73E18E7248}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{63F3AD98-AAEA-4A4A-9A34-1D73E18E7248}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{63F3AD98-AAEA-4A4A-9A34-1D73E18E7248}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
