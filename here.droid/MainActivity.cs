@@ -43,7 +43,7 @@ namespace here.droid
             //   CalendarContract.Calendars.InterfaceConsts.AccountName
             //};
 
-            //var cursor = ManagedQuery(calendarsUri, calendarsProjection, null, null, null);
+            // var cursor = ManagedQuery(calendarsUri, calendarsProjection, null, null, null);
 
             //string[] sourceColumns = {CalendarContract.Calendars.InterfaceConsts.CalendarDisplayName,
             //    CalendarContract.Calendars.InterfaceConsts.AccountName};
