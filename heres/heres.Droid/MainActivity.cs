@@ -43,7 +43,7 @@ namespace heres.Droid
         {
             base.OnResume();
 
-            Task startupWork = new Task(() => {
+            var startupWork = new Task(() => {
                 try
                 {
                     Log.Debug(TAG, "Performing some startup work that takes a bit of time.");
@@ -60,6 +60,7 @@ namespace heres.Droid
             startupWork.ContinueWith(t => {
                 Log.Debug(TAG, "Work is finished - start Activity1.");
                 StartActivity(new Intent(Application.Context, typeof(MainActivity)));
+                startupWork.Dispose();
             }, TaskScheduler.FromCurrentSynchronizationContext());
 
             startupWork.Start();

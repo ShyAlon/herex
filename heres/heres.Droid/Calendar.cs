@@ -71,8 +71,7 @@ namespace heres.Droid
                     CalendarContract.Events.InterfaceConsts.Dtend
                  };
 
-                var eventcursor = con.ManagedQuery(eventsUri, eventsProjection,
-                 string.Format("calendar_id={0}", calId), null, "dtstart ASC");
+                var eventcursor = con.ManagedQuery(eventsUri, eventsProjection, $"calendar_id={calId}", null, "dtstart ASC");
 
                 while (eventcursor.MoveToNext())
                 {
@@ -81,8 +80,8 @@ namespace heres.Droid
                         CalendarId = calId,
                         InternalID = eventcursor.GetLong(0),
                         Title = eventcursor.GetString(1),
-                        StartTime = GetTime(eventcursor.GetLong(2)),
-                        EndTime = GetTime(eventcursor.GetLong(3))
+                        Start = GetTime(eventcursor.GetLong(2)),
+                        End = GetTime(eventcursor.GetLong(3))
                     };
                     result.Add(m);
                 }
@@ -97,7 +96,6 @@ namespace heres.Droid
             res = res.AddYears(1969);
             var offset = TimeZoneInfo.Local.GetUtcOffset(DateTime.UtcNow);
             res = res.Add(offset);
-            
             return res;
         }
     }

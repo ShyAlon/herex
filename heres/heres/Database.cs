@@ -61,7 +61,7 @@ namespace heres
             }
         }
 
-        public int DeleteItem(int id)
+        public int DeleteItem(long id)
         {
             lock (locker)
             {
