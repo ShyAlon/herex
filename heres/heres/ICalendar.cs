@@ -8,6 +8,6 @@ namespace heres
 {
     public interface ICalendar
     {
-        IEnumerable<Meeting> GetEvents();
+        IEnumerable<Meeting> GetEvents(Object context = null);
     }
 }

@@ -19,26 +19,24 @@ namespace heres.pages
             DataTemplate dataTemplate = new DataTemplate(typeof(MeetingCell));
             dataTemplate.SetBinding(TextCell.TextProperty, "Title");
 
+            Title = "Events";
+
             var layout = new StackLayout()
             {
                 Children =
                 {
-                    new Label
+                    new ActivityIndicator
                     {
-                        Text = "Loading Events"
+                        IsRunning = true
                     }
                 }, VerticalOptions = LayoutOptions.Center
 
             };
-            Content = new ScrollView
-            {
-                Content = layout
-            };
+            Content = layout;
             
 
-            Task.Run(() =>
+            new Thread(() =>
             {
-                Thread.Sleep(300);
                 var dialer = DependencyService.Get<ICalendar>();
                 var res = dialer.GetEvents();
                 var relevant = (from e in res
@@ -48,19 +46,20 @@ namespace heres.pages
 
                 Device.BeginInvokeOnMainThread(() =>
                 {
-                    Content.BatchBegin();
                     list = new ListView
                     {
-                        ItemsSource = res,
+                        ItemsSource = relevant,
                         ItemTemplate = dataTemplate
                     };
+                    Content = new ScrollView
+                    {
+                        Content = list
+                    };
                     ((ScrollView)Content).Content = list;
-                    Content.BatchCommit();
-
                     list.ItemSelected += EventSelected;
                     
                 });
-            });
+            }).Start();
         }
 
         async private void EventSelected(object sender, SelectedItemChangedEventArgs e)
@@ -71,13 +70,9 @@ namespace heres.pages
             //}
             //DisplayAlert("Item Selected", e.SelectedItem.ToString(), "Ok");
             //((ListView)sender).SelectedItem = null; //uncomment line if you want to disable the visual se
-
-            await Navigation.PushAsync(new heres.pages.EventPage());
-        }
-
-        void OnButtonClicked(object sender, EventArgs args)
-        { // Add Label to scrollable StackLayout.
-            System.Console.WriteLine(sender.ToString());
+            var page = new EventPage(e.SelectedItem as Meeting);
+            page.BindingContext = e.SelectedItem;
+            await Navigation.PushAsync(page);
         }
     }
 }

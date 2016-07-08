@@ -6,7 +6,14 @@ namespace heres.poco
 {
     public class Meeting
     {
-        public long Id { get; set; }
+        /// <summary>
+        /// The id of the event in the database
+        /// </summary>
+        public long ID { get; set; }
+        /// <summary>
+        /// The ID the phone gives to the event
+        /// </summary>
+        public long InternalID { get; set; }
         public string Title { get; set; }
         public DateTime StartTime { get; set; }
         public DateTime EndTime { get; set; }

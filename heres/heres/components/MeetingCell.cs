@@ -9,8 +9,7 @@ namespace heres.components
     {
         public MeetingCell()
         {
-            var image = new Image();
-            StackLayout cellWrapper = new StackLayout();
+            StackLayout cellWrapper = new StackLayout() { Padding = new Thickness(20, 0, 10, 0) };
             StackLayout horizontalLayout = new StackLayout();
             Label left = new Label();
             Label right = new Label();
@@ -18,17 +17,12 @@ namespace heres.components
             //set bindings
             left.SetBinding(Label.TextProperty, "Title");
             right.SetBinding(Label.TextProperty, "StartString");
-            image.SetBinding(Image.SourceProperty, "image");
 
             //Set properties for desired design
-            cellWrapper.BackgroundColor = Color.FromHex("#eee");
             horizontalLayout.Orientation = StackOrientation.Horizontal;
             right.HorizontalOptions = LayoutOptions.EndAndExpand;
-            left.TextColor = Color.FromHex("#f35e20");
-            right.TextColor = Color.FromHex("503026");
 
             //add views to the view hierarchy
-            horizontalLayout.Children.Add(image);
             horizontalLayout.Children.Add(left);
             horizontalLayout.Children.Add(right);
             cellWrapper.Children.Add(horizontalLayout);

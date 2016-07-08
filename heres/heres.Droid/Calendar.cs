@@ -35,8 +35,15 @@ namespace heres.Droid
         private const int PROJECTION_DISPLAY_NAME_INDEX = 2;
         private const int PROJECTION_OWNER_ACCOUNT_INDEX = 3;
 
-        public IEnumerable<Meeting> GetEvents()
+        public static IEnumerable<Meeting> Meetings { get; set; }
+
+        public IEnumerable<Meeting> GetEvents(Object context)
         {
+            var con = context != null ? (Activity)context : (Activity)Forms.Context;
+            if (Meetings != null)
+            {
+                return Meetings;
+            }
             // List Calendars
             var calendarsUri = CalendarContract.Calendars.ContentUri;
 
@@ -48,7 +55,7 @@ namespace heres.Droid
 
             var result = new List<Meeting>();
 
-            var cursor = ((Activity)Forms.Context).ManagedQuery(calendarsUri, calendarsProjection, null, null, null);
+            var cursor = con.ManagedQuery(calendarsUri, calendarsProjection, null, null, null);
             while (cursor.MoveToNext())
             {
                 long calId = cursor.GetLong(PROJECTION_ID_INDEX);
@@ -64,7 +71,7 @@ namespace heres.Droid
                     CalendarContract.Events.InterfaceConsts.Dtend
                  };
 
-                var eventcursor = ((Activity)Forms.Context).ManagedQuery(eventsUri, eventsProjection,
+                var eventcursor = con.ManagedQuery(eventsUri, eventsProjection,
                  string.Format("calendar_id={0}", calId), null, "dtstart ASC");
 
                 while (eventcursor.MoveToNext())
@@ -72,7 +79,7 @@ namespace heres.Droid
                     var m = new Meeting()
                     {
                         CalendarId = calId,
-                        Id = eventcursor.GetLong(0),
+                        InternalID = eventcursor.GetLong(0),
                         Title = eventcursor.GetString(1),
                         StartTime = GetTime(eventcursor.GetLong(2)),
                         EndTime = GetTime(eventcursor.GetLong(3))
@@ -80,7 +87,7 @@ namespace heres.Droid
                     result.Add(m);
                 }
             }
-
+            Meetings = result;
             return result;
         }
 
