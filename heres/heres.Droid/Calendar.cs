@@ -90,13 +90,50 @@ namespace heres.Droid
             return result;
         }
 
-        private DateTime GetTime(long val)
+        private static DateTime GetTime(long val)
         {
             var res = new DateTime(val * 10000);
             res = res.AddYears(1969);
             var offset = TimeZoneInfo.Local.GetUtcOffset(DateTime.UtcNow);
             res = res.Add(offset);
             return res;
+        }
+
+        public void Open(long id, Object context)
+        {
+            var con = context != null ? (Activity)context : (Activity)Forms.Context;
+            var uri = ContentUris.WithAppendedId(Events.ContentUri, id);
+            var intent = new Intent(Intent.ActionView).SetData(uri);
+            con.StartActivity(intent);
+        }
+
+        public Meeting GetEvent(Meeting meeting, Object context)
+        {
+            var con = context != null ? (Activity)context : (Activity)Forms.Context;
+            var eventsUri = CalendarContract.Events.ContentUri;
+
+            string[] eventsProjection = {
+                    CalendarContract.Events.InterfaceConsts.Id,
+                    CalendarContract.Events.InterfaceConsts.Title,
+                    CalendarContract.Events.InterfaceConsts.Dtstart,
+                    CalendarContract.Events.InterfaceConsts.Dtend
+                 };
+
+            var eventcursor = con.ManagedQuery(eventsUri, eventsProjection, $"_id={meeting.InternalID}", null, "dtstart ASC");
+
+            while (eventcursor.MoveToNext())
+            {
+                var m = new Meeting()
+                {
+                    CalendarId = meeting.CalendarId,
+                    InternalID = eventcursor.GetLong(0),
+                    Title = eventcursor.GetString(1),
+                    Start = GetTime(eventcursor.GetLong(2)),
+                    End = GetTime(eventcursor.GetLong(3))
+                };
+                return m;
+            }
+            return null;
         }
     }
 }

@@ -29,6 +29,12 @@ namespace heres
 		protected override void OnResume ()
 		{
 			// Handle when your app resumes
+            if(Resumed != null)
+            {
+                Resumed(this, new EventArgs());
+            }
 		}
+
+        public static event EventHandler Resumed;
 	}
 }

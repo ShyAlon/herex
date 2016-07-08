@@ -16,10 +16,11 @@ namespace heres.pages
         private Dictionary<long, Meeting> meetings;
         private PageTypeGroup tracked;
         private PageTypeGroup unTracked;
+        private DataTemplate dataTemplate;
 
         public EventsPage()
         {
-            var dataTemplate = new DataTemplate(typeof(MeetingCell));
+            dataTemplate = new DataTemplate(typeof(MeetingCell));
             dataTemplate.SetBinding(TextCell.TextProperty, "Title");
 
             Title = "Events";
@@ -54,37 +55,45 @@ namespace heres.pages
                 foreach (var item in meetings.Values)
                 {
                     item.Tracked = (persisted.ContainsKey(item.InternalID));
+                    if(item.Tracked)
+                    {
+                        item.ID = persisted[item.InternalID].ID;
+                    }
                 }
-
-                tracked = new PageTypeGroup("Tracked", "T", from t in meetings.Values where t.Tracked select t);
-                unTracked = new PageTypeGroup("Untracked", "U", from t in meetings.Values where !t.Tracked select t);
-
-                var all = new List<PageTypeGroup>
-                {
-                    tracked, unTracked
-                };
 
                 Device.BeginInvokeOnMainThread(() =>
                 {
-
-                    list = new ListView
-                    {
-                        ItemsSource = all,
-                        ItemTemplate = dataTemplate,
-                        IsGroupingEnabled = true,
-                        GroupDisplayBinding = new Binding("Title"),
-                        GroupShortNameBinding = new Binding("ShortName"),
-                    };
-                    Content = new ScrollView
-                    {
-                        Content = list
-                    };
-                    ((ScrollView)Content).Content = list;
-                    list.ItemTapped += List_ItemTapped;
+                    GenerateList();
                 });
             });
 
             start.Start();
+        }
+
+        private void GenerateList()
+        {
+            tracked = new PageTypeGroup("Tracked", "T", from t in meetings.Values where t.Tracked select t);
+            unTracked = new PageTypeGroup("Untracked", "U", from t in meetings.Values where !t.Tracked select t);
+
+            var all = new List<PageTypeGroup>
+                {
+                    tracked, unTracked
+                };
+
+            list = new ListView
+            {
+                ItemsSource = all,
+                ItemTemplate = dataTemplate,
+                IsGroupingEnabled = true,
+                GroupDisplayBinding = new Binding("Title"),
+                GroupShortNameBinding = new Binding("ShortName"),
+            };
+            Content = new ScrollView
+            {
+                Content = list
+            };
+            ((ScrollView)Content).Content = list;
+            list.ItemTapped += List_ItemTapped;
         }
 
         async private void List_ItemTapped(object sender, ItemTappedEventArgs e)
@@ -100,6 +109,11 @@ namespace heres.pages
             {
                 list.SelectedItem = null;
             };
+
+            if(meetings != null && meetings.Count > 0)
+            {
+                GenerateList();
+            }
         }
 
         public class PageTypeGroup : List<Meeting>

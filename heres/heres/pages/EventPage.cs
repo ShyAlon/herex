@@ -19,6 +19,7 @@ namespace heres.pages
         private TimePicker endTimePicker;
         private SwitchCell tracking;
         private Meeting meeting;
+        private TableSection section;
 
         public EventPage(Meeting _meeting)
         {
@@ -39,11 +40,14 @@ namespace heres.pages
                 endDatePicker.SetBinding(DatePicker.DateProperty, "EndDate");
                 startTimePicker.SetBinding(TimePicker.TimeProperty, "StartTime");
                 endTimePicker.SetBinding(TimePicker.TimeProperty, "EndTime");
+                var b = new Button() { Text = "Edit Event" };
+                b.Clicked += OnEditEvent;
 
-                var section = new TableSection(meeting.Title) { //TableSection constructor takes title as an optional parameter
+                section = new TableSection(meeting.Title) { //TableSection constructor takes title as an optional parameter
                 tracking,
-                new ViewCell {View = Flach("Start:", startDatePicker, startTimePicker) },
-                new ViewCell {View = Flach("End:", endDatePicker, endTimePicker) },
+                new EntryCell { Text = meeting.Start.ToString(), Label = "Start" },
+                new EntryCell { Text = meeting.End.ToString(), Label = "End" },
+                new ViewCell {View = b }
             };
                 Content = new TableView
                 {
@@ -58,7 +62,42 @@ namespace heres.pages
             {
                 Console.WriteLine(ex);
             }
+        }
 
+        private void OnEditEvent(object sender, EventArgs e)
+        {
+            // Open Calendar
+            var calendar = DependencyService.Get<ICalendar>();
+            calendar.Open(meeting.InternalID);
+            App.Resumed += ApplicationResumed;
+        }
+
+        private void ApplicationResumed(object sender, EventArgs e)
+        {
+            App.Resumed -= ApplicationResumed;
+            OnAppearing();
+        }
+
+        protected override void OnAppearing()
+        {
+            base.OnAppearing();
+            var calendar = DependencyService.Get<ICalendar>();
+            var m = calendar.GetEvent(meeting);
+            meeting.Start = m.Start;
+            meeting.End = m.End;
+            meeting.Title = m.Title;
+            Title = meeting.Title;
+            section.Title = Title;
+        }
+
+        protected override void OnDisappearing()
+        {
+            var db = new Database();
+            base.OnDisappearing();
+            if(meeting.Tracked)
+            {
+                meeting.ID = db.SaveItem(meeting);
+            }
         }
 
         private void Tracking_OnChanged(object sender, ToggledEventArgs e)
@@ -72,6 +111,7 @@ namespace heres.pages
             {
                 db.DeleteItem(meeting.ID);
             }
+            meeting.Tracked = e.Value;
         }
 
         private static StackLayout Flach(string title, View view)
