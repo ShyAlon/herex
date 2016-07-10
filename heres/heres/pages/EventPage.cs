@@ -8,54 +8,94 @@ using Xamarin.Forms;
 using System.Threading;
 using heres.components;
 using System.Reflection;
+using System.Collections.ObjectModel;
 
 namespace heres.pages
 {
     public class EventPage : ContentPage
     {
-        private DatePicker startDatePicker;
-        private DatePicker endDatePicker;
-        private TimePicker startTimePicker;
-        private TimePicker endTimePicker;
-        private SwitchCell tracking;
-        private Meeting meeting;
-        private TableSection section;
+        private readonly SwitchCell tracking;
+        private readonly Meeting meeting;
+        private readonly TableSection section;
+        private ObservableCollection<Person> participants;
+        private DataTemplate dataTemplate;
+
+        internal class PersonCell : TextCell
+        {
+            public PersonCell()
+            {
+                var moreAction = new MenuItem { Text = "More" };
+                moreAction.SetBinding(MenuItem.CommandParameterProperty, new Binding("."));
+                moreAction.Clicked += async (sender, e) => {
+                    var mi = ((MenuItem)sender);
+                    Console.WriteLine("More Context Action clicked: " + mi.CommandParameter);
+                };
+
+                var deleteAction = new MenuItem { Text = "Delete", IsDestructive = true }; // red background
+                deleteAction.SetBinding(MenuItem.CommandParameterProperty, new Binding("."));
+                deleteAction.Clicked += async (sender, e) => {
+                    var mi = ((MenuItem)sender);
+                    Console.WriteLine("Delete Context Action clicked: " + mi.CommandParameter);
+                };
+                // add to the ViewCell's ContextActions property
+                ContextActions.Add(moreAction);
+                ContextActions.Add(deleteAction);
+            }
+        }
 
         public EventPage(Meeting _meeting)
         {
             try
             {
+                dataTemplate = new DataTemplate(typeof(PersonCell));
+                dataTemplate.SetBinding(PersonCell.TextProperty, "Name");
                 this.meeting = _meeting;
                 BindingContext = meeting;
                 Title = meeting.Title;
-                startDatePicker = new DatePicker();
-                endDatePicker = new DatePicker();
-                startTimePicker = new TimePicker();
-                endTimePicker = new TimePicker();
                 tracking = new SwitchCell { On = meeting.Tracked, Text = "Is Tracked" };
                 tracking.OnChanged += Tracking_OnChanged;
+                var EditEvent = new Button() { Text = "Edit Event" };
+                EditEvent.Clicked += OnEditEvent;
+                var AddRecipiantEvent = new Button() { Text = "Add Recipiant" };
+                AddRecipiantEvent.Clicked += OnAddRecipiant;
 
-                //title.SetBinding(Label.TextProperty, "Title");
-                startDatePicker.SetBinding(DatePicker.DateProperty, "StartDate");
-                endDatePicker.SetBinding(DatePicker.DateProperty, "EndDate");
-                startTimePicker.SetBinding(TimePicker.TimeProperty, "StartTime");
-                endTimePicker.SetBinding(TimePicker.TimeProperty, "EndTime");
-                var b = new Button() { Text = "Edit Event" };
-                b.Clicked += OnEditEvent;
 
-                section = new TableSection(meeting.Title) { //TableSection constructor takes title as an optional parameter
-                tracking,
-                new EntryCell { Text = meeting.Start.ToString(), Label = "Start" },
-                new EntryCell { Text = meeting.End.ToString(), Label = "End" },
-                new ViewCell {View = b }
-            };
-                Content = new TableView
+                participants = GetParticipants();
+
+                section = new TableSection(meeting.Title)
+                { //TableSection constructor takes title as an optional parameter
+                    tracking,
+                    new TextCell { Detail = meeting.Start.ToString(), Text = "Start"},
+                    new TextCell { Detail = meeting.End.ToString(), Text = "End" },
+                    new ViewCell {View = EditEvent },
+                    new ViewCell {View = AddRecipiantEvent },
+                };
+
+                Content = new StackLayout
                 {
-                    Root = new TableRoot
-                {
-                    section
-                },
-                    Intent = TableIntent.Settings
+                    Children =
+                    {
+                        new TableView
+                        {
+                            VerticalOptions = LayoutOptions.Start,
+                            HorizontalOptions = LayoutOptions.FillAndExpand,
+                            Root = new TableRoot
+                            {
+                                section
+                            }, Intent = TableIntent.Settings
+                        },
+
+                        new ScrollView
+                        {
+                           Content = new ListView
+                            {
+                               Header = "Participants",
+                                ItemsSource = participants,
+                                ItemTemplate = dataTemplate,
+                               
+                            }
+                        }
+                    }
                 };
             }
             catch (Exception ex)
@@ -64,12 +104,31 @@ namespace heres.pages
             }
         }
 
+        private ObservableCollection<Person> GetParticipants()
+        {
+            var calendar = DependencyService.Get<ICalendar>();
+            var res = calendar.GetParticipants(meeting);
+            return new ObservableCollection<Person>(res);
+            // End time serves to remove all day events
+            //meetings = (from e in res
+            //            where e.Start > DateTime.Now && e.End > DateTime.Now
+            //            orderby e.Start ascending
+            //            select e).ToDictionary(x => x.InternalID);
+            //var db = new Database();
+            //var persisted = db.GetItems<Meeting>().ToDictionary(x => x.InternalID);
+        }
+
         private void OnEditEvent(object sender, EventArgs e)
         {
             // Open Calendar
             var calendar = DependencyService.Get<ICalendar>();
             calendar.Open(meeting.InternalID);
             App.Resumed += ApplicationResumed;
+        }
+
+        private void OnAddRecipiant(object sender, EventArgs e)
+        {
+            participants.Add(new Person { Name = "Mayah" });
         }
 
         private void ApplicationResumed(object sender, EventArgs e)
@@ -94,7 +153,7 @@ namespace heres.pages
         {
             var db = new Database();
             base.OnDisappearing();
-            if(meeting.Tracked)
+            if (meeting.Tracked)
             {
                 meeting.ID = db.SaveItem(meeting);
             }
@@ -109,7 +168,7 @@ namespace heres.pages
             }
             else
             {
-                db.DeleteItem(meeting.ID);
+                db.DeleteItem(meeting);
             }
             meeting.Tracked = e.Value;
         }

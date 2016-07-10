@@ -50,7 +50,7 @@ namespace heres.pages
                             orderby e.Start ascending
                             select e).ToDictionary(x => x.InternalID);
                 var db = new Database();
-                var persisted = db.GetItems().ToDictionary(x => x.InternalID);
+                var persisted = db.GetItems<Meeting>().ToDictionary(x => x.InternalID);
 
                 foreach (var item in meetings.Values)
                 {

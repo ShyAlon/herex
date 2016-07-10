@@ -65,20 +65,6 @@ namespace heres.Droid
 
             startupWork.Start();
         }
-
-        //private void InsertToDB(IEnumerable<Meeting> res)
-        //{
-        //    var db = new Database();
-        //    var meetings = db.GetItems();
-        //    var persisted = meetings.ToDictionary(x => x.InternalID);
-        //    foreach (var item in res)
-        //    {
-        //        if(!persisted.ContainsKey(item.InternalID))
-        //        {
-        //            db.SaveItem(item);
-        //        }
-        //    }
-        //}
     }
 }
 

@@ -5,7 +5,12 @@ using System.Text;
 
 namespace heres.poco
 {
-    public class Meeting
+    public interface IItem
+    {
+        long ID { get; set; }
+    }
+
+    public class Meeting : IItem
     {
         /// <summary>
         /// The id of the event in the database

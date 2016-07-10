@@ -17,6 +17,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)pages\EventPage.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)pages\EventsPage.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)poco\Meeting.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)poco\Person.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="$(MSBuildThisFileDirectory)GettingStarted.Xamarin" />

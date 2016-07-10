@@ -10,9 +10,9 @@ namespace heres
 {
     class Database
     {
-        static object locker = new object();
+        static readonly object locker = new object();
 
-        SQLiteConnection database;
+        private readonly SQLiteConnection database;
 
         public Database()
         {
@@ -21,31 +21,23 @@ namespace heres
             database.CreateTable<Meeting>();
         }
 
-        public IEnumerable<Meeting> GetItems()
+        public IEnumerable<T> GetItems<T>() where T : new()
         {
             lock (locker)
             {
-                return (from i in database.Table<Meeting>() select i).ToList();
+                return (from i in database.Table<T>() select i).ToList();
             }
         }
 
-        public IEnumerable<Meeting> GetItemsNotDone()
+        public T GetItem<T>(int id) where T : IItem, new()
         {
             lock (locker)
             {
-                return database.Query<Meeting>("SELECT * FROM [Meeting] WHERE [Done] = 0");
+                return database.Table<T>().FirstOrDefault(x => x.ID == id);
             }
         }
 
-        public Meeting GetItem(int id)
-        {
-            lock (locker)
-            {
-                return database.Table<Meeting>().FirstOrDefault(x => x.ID == id);
-            }
-        }
-
-        public long SaveItem(Meeting item)
+        public long SaveItem<T>(T item) where T : IItem,  new()
         {
             lock (locker)
             {
@@ -61,11 +53,19 @@ namespace heres
             }
         }
 
-        public int DeleteItem(long id)
+        public int DeleteItem<T>(long id) where T : IItem, new()
         {
             lock (locker)
             {
-                return database.Delete<Meeting>(id);
+                return database.Delete<T>(id);
+            }
+        }
+
+        public int DeleteItem<T>(T item) where T : IItem, new()
+        {
+            lock (locker)
+            {
+                return database.Delete<T>(item.ID);
             }
         }
     }

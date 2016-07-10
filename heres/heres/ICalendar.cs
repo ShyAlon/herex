@@ -13,7 +13,7 @@ namespace heres
         /// </summary>
         /// <param name="context"></param>
         /// <returns></returns>
-        IEnumerable<Meeting> GetEvents(Object context = null);
+        IEnumerable<Meeting> GetEvents(object context = null);
 
         /// <summary>
         /// Opens the event in the  calendar application
@@ -21,6 +21,13 @@ namespace heres
         void Open(long id, Object context = null);
 
         ///Get a meeting
-        Meeting GetEvent(Meeting meeting, Object context = null);
+        Meeting GetEvent(Meeting meeting, object context = null);
+
+        /// <summary>
+        /// Get the participants of an event
+        /// </summary>
+        /// <param name="meeting">The event</param>
+        /// <returns>A list of participants</returns>
+        IList<Person> GetParticipants(Meeting meeting, object context = null);
     }
 }

@@ -107,16 +107,16 @@ namespace heres.Droid
             con.StartActivity(intent);
         }
 
-        public Meeting GetEvent(Meeting meeting, Object context)
+        public Meeting GetEvent(Meeting meeting, object context)
         {
             var con = context != null ? (Activity)context : (Activity)Forms.Context;
             var eventsUri = CalendarContract.Events.ContentUri;
 
             string[] eventsProjection = {
-                    CalendarContract.Events.InterfaceConsts.Id,
-                    CalendarContract.Events.InterfaceConsts.Title,
-                    CalendarContract.Events.InterfaceConsts.Dtstart,
-                    CalendarContract.Events.InterfaceConsts.Dtend
+                    Events.InterfaceConsts.Id,
+                    Events.InterfaceConsts.Title,
+                    Events.InterfaceConsts.Dtstart,
+                    Events.InterfaceConsts.Dtend
                  };
 
             var eventcursor = con.ManagedQuery(eventsUri, eventsProjection, $"_id={meeting.InternalID}", null, "dtstart ASC");
@@ -134,6 +134,56 @@ namespace heres.Droid
                 return m;
             }
             return null;
+        }
+
+        public IList<Person> GetParticipants(Meeting meeting, object context)
+        {
+            var con = context != null ? (Activity)context : (Activity)Forms.Context;
+            var eventsUri = Attendees.ContentUri;
+            var result = new List<Person>();
+
+            string[] eventsProjection = {
+                    Attendees.InterfaceConsts.Id,
+                    Attendees.InterfaceConsts.EventId,
+                    Attendees.InterfaceConsts.AttendeeName,
+                    Attendees.InterfaceConsts.AttendeeEmail,
+                    Attendees.InterfaceConsts.AttendeeIdentity,
+                    Attendees.InterfaceConsts.AttendeeStatus,
+                    Attendees.InterfaceConsts.IsOrganizer,
+                 };
+
+            var eventcursor = con.ContentResolver.Query(eventsUri, eventsProjection, $"event_id={meeting.InternalID}", null, null);
+
+            while (eventcursor.MoveToNext())
+            {
+                var m = new Person()
+                {
+                    ContactID = eventcursor.GetLong(0),
+                    MeetingID = eventcursor.GetLong(1),
+                    Name = eventcursor.GetString(2),
+                    Email = eventcursor.GetString(3),
+                    Identity = eventcursor.GetString(4),
+                    Status = eventcursor.GetString(5),
+                    IsOrganizer = eventcursor.GetInt(6),
+                };
+                result.Add(m);
+            }
+
+
+            foreach (var p in result)
+            {
+                var phones = con.ContentResolver.Query(ContactsContract.CommonDataKinds.Phone.ContentUri, null, $"{ContactsContract.Contacts.InterfaceConsts.Id}={p.ContactID}", null, null);
+                while (phones.MoveToNext())
+                {
+                    var number = phones.GetString( phones.GetColumnIndex(ContactsContract.CommonDataKinds.Phone.Number));
+                    var type = phones.GetLong(phones.GetColumnIndex(ContactsContract.CommonDataKinds.Phone.ContentType));
+                    p.PhoneNumber = number;
+                    p.PhoneType = type;
+                }
+            }
+            
+
+            return result;
         }
     }
 }
