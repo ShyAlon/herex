@@ -1,20 +1,14 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 
 using Android.App;
 using Android.Content;
-using Android.OS;
-using Android.Runtime;
-using Android.Views;
-using Android.Widget;
-using heres;
 using heres.poco;
 using Xamarin.Forms;
 using Android.Provider;
 using static Android.Provider.CalendarContract;
-using System.Collections;
+using Xamarin.Contacts;
+using System.Text;
 
 [assembly: Dependency(typeof(heres.Droid.Calendar))]
 
@@ -34,6 +28,10 @@ namespace heres.Droid
         private const int PROJECTION_ACCOUNT_NAME_INDEX = 1;
         private const int PROJECTION_DISPLAY_NAME_INDEX = 2;
         private const int PROJECTION_OWNER_ACCOUNT_INDEX = 3;
+
+        private static Dictionary<long, string> contacts = new Dictionary<long, string>();
+
+        private static Dictionary<string, Person> ContactsByEmail = new Dictionary<string, Person>();
 
         public static IEnumerable<Meeting> Meetings { get; set; }
 
@@ -55,12 +53,12 @@ namespace heres.Droid
 
             var result = new List<Meeting>();
 
-            var cursor = con.ManagedQuery(calendarsUri, calendarsProjection, null, null, null);
+            var cursor = con.ContentResolver.Query(calendarsUri, calendarsProjection, null, null, null);
             while (cursor.MoveToNext())
             {
-                long calId = cursor.GetLong(PROJECTION_ID_INDEX);
-                String displayName = cursor.GetString(PROJECTION_DISPLAY_NAME_INDEX);
-                String accountName = cursor.GetString(PROJECTION_ACCOUNT_NAME_INDEX);
+                var calId = cursor.GetLong(PROJECTION_ID_INDEX);
+                var displayName = cursor.GetString(PROJECTION_DISPLAY_NAME_INDEX);
+                var accountName = cursor.GetString(PROJECTION_ACCOUNT_NAME_INDEX);
 
                 var eventsUri = CalendarContract.Events.ContentUri;
 
@@ -71,7 +69,7 @@ namespace heres.Droid
                     CalendarContract.Events.InterfaceConsts.Dtend
                  };
 
-                var eventcursor = con.ManagedQuery(eventsUri, eventsProjection, $"calendar_id={calId}", null, "dtstart ASC");
+                var eventcursor = con.ContentResolver.Query(eventsUri, eventsProjection, $"calendar_id={calId}", null, "dtstart ASC");
 
                 while (eventcursor.MoveToNext())
                 {
@@ -87,8 +85,90 @@ namespace heres.Droid
                 }
             }
             Meetings = result;
+
+            var uri = ContactsContract.Contacts.ContentUri;
+
+            string[] projection =
+            {
+                ContactsContract.Contacts.InterfaceConsts.Id,
+                ContactsContract.Contacts.InterfaceConsts.DisplayName,
+            };
+
+            cursor = con.ContentResolver.Query(uri, projection, null, null, null);
+
+            if (cursor.MoveToFirst())
+            {
+                do
+                {
+                    contacts[cursor.GetLong(cursor.GetColumnIndex(projection[0]))] = cursor.GetString(cursor.GetColumnIndex(projection[1]));
+                } while (cursor.MoveToNext());
+            }
+
+
+            //var book = new AddressBook(con.ApplicationContext);
+            //book.RequestPermission().ContinueWith(t =>
+            //{
+            //    if (!t.Result)
+            //    {
+            //        Console.WriteLine("Permission denied by user or manifest");
+            //        return;
+            //    }
+
+            //    foreach (var c in book)
+            //    {
+            //        foreach (var e in c.Emails)
+            //        {
+            //            ContactsByEmail[e.Address] = c;
+            //        }
+            //    }
+
+            //    Console.WriteLine("Finished");
+
+            //}).Wait();
+
             return result;
         }
+
+        public Person GetContact(string v, object context)
+        {
+            var con = context != null ? (Activity)context : (Activity)Forms.Context;
+
+            var p = new Person();
+
+            var uri = ContactsContract.CommonDataKinds.Email.ContentUri;
+
+            string[] projection =
+            {
+                ContactsContract.Contacts.InterfaceConsts.Id,
+                ContactsContract.Contacts.InterfaceConsts.DisplayName,
+                ContactsContract.CommonDataKinds.Email.Address
+            };
+
+            var selection = $"{ContactsContract.CommonDataKinds.Email.InterfaceConsts.DisplayNamePrimary}='{v}'";
+
+            var cursor = con.ContentResolver.Query(uri, projection, selection, null, null);
+
+            if (cursor.MoveToFirst())
+            {
+                do
+                {
+                    return new Person
+                    {
+                        ContactID = cursor.GetLong(cursor.GetColumnIndex(projection[0])),
+                        Name = cursor.GetString(cursor.GetColumnIndex(projection[1])),
+                        Email = cursor.GetString(cursor.GetColumnIndex(projection[2])),
+                    };
+                } while (cursor.MoveToNext());
+            }
+            return null;
+
+        }
+
+        public IEnumerable<string> GetParticipantNames(object context)
+        {
+            return contacts.Values;
+        }
+
 
         private static DateTime GetTime(long val)
         {
@@ -97,6 +177,83 @@ namespace heres.Droid
             var offset = TimeZoneInfo.Local.GetUtcOffset(DateTime.UtcNow);
             res = res.Add(offset);
             return res;
+        }
+
+        private void GetContacts(Object context)
+        {
+            var con = context != null ? (Activity)context : (Activity)Forms.Context;
+            var uri = ContactsContract.Contacts.ContentUri;
+            //var uri = ContactsContract.CommonDataKinds.Phone.ContentUri;
+            string[] projection = { ContactsContract.Contacts.InterfaceConsts.Id,
+            ContactsContract.Contacts.InterfaceConsts.DisplayName, //ContactsContract.CommonDataKinds.Phone.Number ,
+            //ContactsContract.CommonDataKinds.Email.Address
+            };
+            //var cursor = ManagedQuery (uri, projection, null, null, null);
+            con.RunOnUiThread(() =>
+            {
+                using (var loader1 = new CursorLoader(con.ApplicationContext, uri, projection, null, null, null))
+                {
+                    var cursor = (Android.Database.ICursor)loader1.LoadInBackground();
+                    var contactList = new List<Contact>();
+                    Android.Database.ICursor nestedCursor;
+                    string id;
+                    string phone = "";
+                    var sb = new StringBuilder();
+
+                    if (cursor.MoveToFirst())
+                    {
+                        do
+                        {
+                            id = cursor.GetString(cursor.GetColumnIndex(projection[0]));
+                            //id = cursor.GetString(cursor.GetColumnIndex(BaseColumns.Id));
+                            //****load email address
+                            using (var loader2 = new CursorLoader(con.ApplicationContext, ContactsContract.CommonDataKinds.Email.ContentUri, null,
+                                ContactsContract.CommonDataKinds.Email.InterfaceConsts.ContactId + " = " + id,
+                                //new String[]{ cursor.GetString(cursor.GetColumnIndex(BaseColumns.Id)) }
+                                null, null))
+                            {
+                                nestedCursor = (Android.Database.ICursor)loader2.LoadInBackground();
+
+                                if (nestedCursor.MoveToFirst())
+                                {
+                                    do
+                                    {
+                                        sb.Append(nestedCursor.GetString(
+                                            nestedCursor.GetColumnIndex(ContactsContract.CommonDataKinds.Email.InterfaceConsts.Data)));
+                                    } while (nestedCursor.MoveToNext());
+                                }
+
+                                //****load phones
+                                using (var loader3 = new CursorLoader(con.ApplicationContext, ContactsContract.CommonDataKinds.Phone.ContentUri, null,
+                                    ContactsContract.CommonDataKinds.Phone.InterfaceConsts.ContactId + " = " + id,
+                                    //new String[]{ cursor.GetString(cursor.GetColumnIndex(BaseColumns.Id)) }
+                                    null, null))
+                                {
+                                    nestedCursor = (Android.Database.ICursor)loader3.LoadInBackground();
+
+                                    if (nestedCursor.MoveToFirst())
+                                    {
+                                        phone = nestedCursor.GetString(
+                                                nestedCursor.GetColumnIndex(ContactsContract.CommonDataKinds.Email.InterfaceConsts.Data));
+                                    }
+
+                                    //***
+                                    var mail = sb.ToString();
+
+                                    ContactsByEmail[mail] = new Person
+                                    {
+                                        Email = mail,
+                                        Name = cursor.GetString(cursor.GetColumnIndex(projection[1]))
+                                    };
+
+                                    sb.Clear();
+                                    phone = "";
+                                }
+                            }
+                        } while (cursor.MoveToNext());
+                    }
+                }
+            });
         }
 
         public void Open(long id, Object context)
@@ -119,7 +276,7 @@ namespace heres.Droid
                     Events.InterfaceConsts.Dtend
                  };
 
-            var eventcursor = con.ManagedQuery(eventsUri, eventsProjection, $"_id={meeting.InternalID}", null, "dtstart ASC");
+            var eventcursor = con.ContentResolver.Query(eventsUri, eventsProjection, $"_id={meeting.InternalID}", null, "dtstart ASC");
 
             while (eventcursor.MoveToNext())
             {
@@ -159,10 +316,10 @@ namespace heres.Droid
                 var m = new Person()
                 {
                     ContactID = eventcursor.GetLong(0),
-                    MeetingID = eventcursor.GetLong(1),
+                    ParentID = eventcursor.GetLong(1),
                     Name = eventcursor.GetString(2),
                     Email = eventcursor.GetString(3),
-                    Identity = eventcursor.GetString(4),
+                    // Identity = eventcursor.GetString(4),
                     Status = eventcursor.GetString(5),
                     IsOrganizer = eventcursor.GetInt(6),
                 };
@@ -170,18 +327,18 @@ namespace heres.Droid
             }
 
 
-            foreach (var p in result)
-            {
-                var phones = con.ContentResolver.Query(ContactsContract.CommonDataKinds.Phone.ContentUri, null, $"{ContactsContract.Contacts.InterfaceConsts.Id}={p.ContactID}", null, null);
-                while (phones.MoveToNext())
-                {
-                    var number = phones.GetString( phones.GetColumnIndex(ContactsContract.CommonDataKinds.Phone.Number));
-                    var type = phones.GetLong(phones.GetColumnIndex(ContactsContract.CommonDataKinds.Phone.ContentType));
-                    p.PhoneNumber = number;
-                    p.PhoneType = type;
-                }
-            }
-            
+            //string[] dataProjection = {  ContactsContract.CommonDataKinds.Phone.Number };
+            //foreach (var p in result)
+            //{
+            //    var dataSelection = $" {ContactsContract.CommonDataKinds.Phone.InterfaceConsts.ContactId} = {p.ContactID} ";
+            //    var phones = con.ContentResolver.Query(ContactsContract.Data.ContentUri, dataProjection, dataSelection, null, null);
+            //    while (phones.MoveToNext())
+            //    {
+            //        var number = phones.GetString(0);
+            //        p.PhoneNumber = number;
+            //    }
+            //}
+
 
             return result;
         }

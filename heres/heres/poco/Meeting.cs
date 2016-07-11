@@ -5,21 +5,22 @@ using System.Text;
 
 namespace heres.poco
 {
-    public interface IItem
-    {
-        long ID { get; set; }
-    }
-
-    public class Meeting : IItem
+    public abstract class ItemBase
     {
         /// <summary>
         /// The id of the event in the database
         /// </summary>
         [PrimaryKey, AutoIncrement]
         public long ID { get; set; }
+
         /// <summary>
-        /// The ID the phone gives to the event
+        /// The parent / container
         /// </summary>
+        public long ParentID { get; set; }
+    }
+
+    public class Meeting : ItemBase
+    {
         [Unique]
         public long InternalID { get; set; }
         public string Title { get; set; }
@@ -83,5 +84,8 @@ namespace heres.poco
         }
         [Ignore]
         public bool Tracked { get; set; }
+
+        [Ignore]
+        public ICollection<Person> Participants {get;set;}
     }
 }

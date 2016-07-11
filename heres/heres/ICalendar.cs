@@ -29,5 +29,19 @@ namespace heres
         /// <param name="meeting">The event</param>
         /// <returns>A list of participants</returns>
         IList<Person> GetParticipants(Meeting meeting, object context = null);
+
+        /// <summary>
+        /// Gets all the names of the contacts
+        /// </summary>
+        /// <param name="context"></param>
+        /// <returns></returns>
+        IEnumerable<string> GetParticipantNames(object context = null);
+
+        /// <summary>
+        /// Get a contact (the first one) for a displayname
+        /// </summary>
+        /// <param name="v">The display name</param>
+        /// <returns>The found contact</returns>
+        Person GetContact(string v, object context = null);
     }
 }

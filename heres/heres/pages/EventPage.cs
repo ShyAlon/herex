@@ -14,34 +14,31 @@ namespace heres.pages
 {
     public class EventPage : ContentPage
     {
-        private readonly SwitchCell tracking;
-        private readonly Meeting meeting;
-        private readonly TableSection section;
-        private ObservableCollection<Person> participants;
+        private SwitchCell tracking;
+        private Meeting meeting;
+        private TableSection section;
         private DataTemplate dataTemplate;
 
         internal class PersonCell : TextCell
         {
             public PersonCell()
             {
-                var moreAction = new MenuItem { Text = "More" };
-                moreAction.SetBinding(MenuItem.CommandParameterProperty, new Binding("."));
-                moreAction.Clicked += async (sender, e) => {
-                    var mi = ((MenuItem)sender);
-                    Console.WriteLine("More Context Action clicked: " + mi.CommandParameter);
-                };
-
                 var deleteAction = new MenuItem { Text = "Delete", IsDestructive = true }; // red background
                 deleteAction.SetBinding(MenuItem.CommandParameterProperty, new Binding("."));
-                deleteAction.Clicked += async (sender, e) => {
-                    var mi = ((MenuItem)sender);
-                    Console.WriteLine("Delete Context Action clicked: " + mi.CommandParameter);
-                };
-                // add to the ViewCell's ContextActions property
-                ContextActions.Add(moreAction);
+                deleteAction.Clicked += Delete;
                 ContextActions.Add(deleteAction);
             }
+
+            private void Delete(object sender, EventArgs e)
+            {
+                var p = (Person)BindingContext;
+                var db = new Database();
+                db.DeleteItem(p);
+                EventPage.RefreshList(sender, e);
+            }
         }
+
+        internal static event EventHandler RefreshList;
 
         public EventPage(Meeting _meeting)
         {
@@ -50,30 +47,55 @@ namespace heres.pages
                 dataTemplate = new DataTemplate(typeof(PersonCell));
                 dataTemplate.SetBinding(PersonCell.TextProperty, "Name");
                 this.meeting = _meeting;
-                BindingContext = meeting;
-                Title = meeting.Title;
-                tracking = new SwitchCell { On = meeting.Tracked, Text = "Is Tracked" };
-                tracking.OnChanged += Tracking_OnChanged;
-                var EditEvent = new Button() { Text = "Edit Event" };
-                EditEvent.Clicked += OnEditEvent;
-                var AddRecipiantEvent = new Button() { Text = "Add Recipiant" };
-                AddRecipiantEvent.Clicked += OnAddRecipiant;
 
+                ReadParticipants();
+                CreateContent();
 
-                participants = GetParticipants();
+                RefreshList += (s, e) =>
+                {
+                    ReadParticipants();
+                    CreateContent();
+                };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+            }
+        }
 
-                section = new TableSection(meeting.Title)
+        private void ReadParticipants()
+        {
+            meeting.Participants = GetParticipants();
+            var additional = GetSavedParticipants();
+            foreach (var item in additional)
+            {
+                meeting.Participants.Add(item);
+            }
+        }
+
+        private void CreateContent()
+        {
+            BindingContext = meeting;
+            Title = meeting.Title;
+            tracking = new SwitchCell { On = meeting.Tracked, Text = "Is Tracked" };
+            tracking.OnChanged += Tracking_OnChanged;
+            var EditEvent = new Button() { Text = "Edit Event" };
+            EditEvent.Clicked += OnEditEvent;
+            var AddRecipiantEvent = new Button() { Text = "Add Recipiant" };
+            AddRecipiantEvent.Clicked += OnAddRecipiant;
+
+            section = new TableSection(meeting.Title)
                 { //TableSection constructor takes title as an optional parameter
                     tracking,
                     new TextCell { Detail = meeting.Start.ToString(), Text = "Start"},
                     new TextCell { Detail = meeting.End.ToString(), Text = "End" },
-                    new ViewCell {View = EditEvent },
-                    new ViewCell {View = AddRecipiantEvent },
+                    new ViewCell { View = EditEvent },
+                    new ViewCell { View = AddRecipiantEvent },
                 };
 
-                Content = new StackLayout
-                {
-                    Children =
+            Content = new StackLayout
+            {
+                Children =
                     {
                         new TableView
                         {
@@ -90,18 +112,20 @@ namespace heres.pages
                            Content = new ListView
                             {
                                Header = "Participants",
-                                ItemsSource = participants,
+                                ItemsSource = meeting.Participants,
                                 ItemTemplate = dataTemplate,
-                               
+
                             }
                         }
                     }
-                };
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex);
-            }
+            };
+        }
+
+        private IEnumerable<Person> GetSavedParticipants()
+        {
+            var db = new Database();
+            var persons = db.GetItems<Person>(meeting.InternalID);
+            return persons;
         }
 
         private ObservableCollection<Person> GetParticipants()
@@ -109,13 +133,6 @@ namespace heres.pages
             var calendar = DependencyService.Get<ICalendar>();
             var res = calendar.GetParticipants(meeting);
             return new ObservableCollection<Person>(res);
-            // End time serves to remove all day events
-            //meetings = (from e in res
-            //            where e.Start > DateTime.Now && e.End > DateTime.Now
-            //            orderby e.Start ascending
-            //            select e).ToDictionary(x => x.InternalID);
-            //var db = new Database();
-            //var persisted = db.GetItems<Meeting>().ToDictionary(x => x.InternalID);
         }
 
         private void OnEditEvent(object sender, EventArgs e)
@@ -126,9 +143,10 @@ namespace heres.pages
             App.Resumed += ApplicationResumed;
         }
 
-        private void OnAddRecipiant(object sender, EventArgs e)
+        async private void OnAddRecipiant(object sender, EventArgs e)
         {
-            participants.Add(new Person { Name = "Mayah" });
+            var page = new SelectContactsPage(meeting);
+            await Navigation.PushAsync(page);
         }
 
         private void ApplicationResumed(object sender, EventArgs e)
@@ -171,39 +189,6 @@ namespace heres.pages
                 db.DeleteItem(meeting);
             }
             meeting.Tracked = e.Value;
-        }
-
-        private static StackLayout Flach(string title, View view)
-        {
-            var layout = new StackLayout() { Orientation = StackOrientation.Horizontal, Padding = new Thickness(20, 0, 10, 0) };
-            view.VerticalOptions = LayoutOptions.Center;
-            view.HorizontalOptions = LayoutOptions.EndAndExpand;
-            layout.Children.Add(new Label()
-            {
-                Text = title,
-                TextColor = Color.FromHex("#f35e20"),
-                VerticalOptions = LayoutOptions.Center
-            });
-            layout.Children.Add(view);
-            return layout;
-        }
-
-        private static StackLayout Flach(string title, View view1, View view2)
-        {
-            var layout = new StackLayout() { Orientation = StackOrientation.Horizontal, Padding = new Thickness(20, 0, 10, 0) };
-            view1.VerticalOptions = LayoutOptions.Center;
-            view1.HorizontalOptions = LayoutOptions.CenterAndExpand;
-            view2.VerticalOptions = LayoutOptions.Center;
-            view2.HorizontalOptions = LayoutOptions.EndAndExpand;
-            layout.Children.Add(new Label()
-            {
-                Text = title,
-                TextColor = Color.FromHex("#f35e20"),
-                VerticalOptions = LayoutOptions.Center
-            });
-            layout.Children.Add(view1);
-            layout.Children.Add(view2);
-            return layout;
         }
     }
 }

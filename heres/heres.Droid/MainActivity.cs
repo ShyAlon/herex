@@ -59,7 +59,8 @@ namespace heres.Droid
 
             startupWork.ContinueWith(t => {
                 Log.Debug(TAG, "Work is finished - start Activity1.");
-                StartActivity(new Intent(Application.Context, typeof(MainActivity)));
+                var intent = new Intent(Application.Context, typeof(MainActivity));
+                StartActivity(intent);
                 startupWork.Dispose();
             }, TaskScheduler.FromCurrentSynchronizationContext());
 

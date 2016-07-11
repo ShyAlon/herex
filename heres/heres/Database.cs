@@ -19,17 +19,27 @@ namespace heres
             database = DependencyService.Get<ISQLite>().GetConnection();
             // create the tables
             database.CreateTable<Meeting>();
+            database.CreateTable<Person>();
         }
 
-        public IEnumerable<T> GetItems<T>() where T : new()
+        public IEnumerable<T> GetItems<T>(long parent = -1) where T : ItemBase,  new()
         {
             lock (locker)
             {
-                return (from i in database.Table<T>() select i).ToList();
+                if(parent < 0)
+                {
+                    return (from i in database.Table<T>() select i).ToList();
+                }
+                else
+                {
+                    return (from i in database.Table<T>()
+                            where i.ParentID == parent
+                            select i).ToList();
+                }
             }
         }
 
-        public T GetItem<T>(int id) where T : IItem, new()
+        public T GetItem<T>(int id) where T : ItemBase, new()
         {
             lock (locker)
             {
@@ -37,7 +47,7 @@ namespace heres
             }
         }
 
-        public long SaveItem<T>(T item) where T : IItem,  new()
+        public long SaveItem<T>(T item) where T : ItemBase,  new()
         {
             lock (locker)
             {
@@ -53,7 +63,7 @@ namespace heres
             }
         }
 
-        public int DeleteItem<T>(long id) where T : IItem, new()
+        public int DeleteItem<T>(long id) where T : ItemBase, new()
         {
             lock (locker)
             {
@@ -61,7 +71,7 @@ namespace heres
             }
         }
 
-        public int DeleteItem<T>(T item) where T : IItem, new()
+        public int DeleteItem<T>(T item) where T : ItemBase, new()
         {
             lock (locker)
             {
