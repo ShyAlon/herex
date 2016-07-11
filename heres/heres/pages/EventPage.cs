@@ -23,10 +23,20 @@ namespace heres.pages
         {
             public PersonCell()
             {
-                var deleteAction = new MenuItem { Text = "Delete", IsDestructive = true }; // red background
-                deleteAction.SetBinding(MenuItem.CommandParameterProperty, new Binding("."));
-                deleteAction.Clicked += Delete;
-                ContextActions.Add(deleteAction);
+
+            }
+
+            protected override void OnBindingContextChanged()
+            {
+                base.OnBindingContextChanged();
+                var p = (Person)BindingContext;
+                if (!p.Organic)
+                {
+                    var deleteAction = new MenuItem { Text = "Delete", IsDestructive = true }; // red background
+                    deleteAction.SetBinding(MenuItem.CommandParameterProperty, new Binding("."));
+                    deleteAction.Clicked += Delete;
+                    ContextActions.Add(deleteAction);
+                }
             }
 
             private void Delete(object sender, EventArgs e)
@@ -85,13 +95,21 @@ namespace heres.pages
             AddRecipiantEvent.Clicked += OnAddRecipiant;
 
             section = new TableSection(meeting.Title)
-                { //TableSection constructor takes title as an optional parameter
-                    tracking,
-                    new TextCell { Detail = meeting.Start.ToString(), Text = "Start"},
-                    new TextCell { Detail = meeting.End.ToString(), Text = "End" },
-                    new ViewCell { View = EditEvent },
-                    new ViewCell { View = AddRecipiantEvent },
-                };
+            { //TableSection constructor takes title as an optional parameter
+                tracking,
+                new TextCell { Detail = meeting.Start.ToString(), Text = "Start"},
+                new TextCell { Detail = meeting.End.ToString(), Text = "End" },
+                new ViewCell { View = EditEvent },
+                new ViewCell { View = AddRecipiantEvent },
+            };
+
+            var listView = new ListView
+            {
+                Header = "Participants",
+                ItemsSource = meeting.Participants,
+                ItemTemplate = dataTemplate,
+            };
+            listView.ItemTapped += ParticipantTapped;
 
             Content = new StackLayout
             {
@@ -109,22 +127,26 @@ namespace heres.pages
 
                         new ScrollView
                         {
-                           Content = new ListView
-                            {
-                               Header = "Participants",
-                                ItemsSource = meeting.Participants,
-                                ItemTemplate = dataTemplate,
-
-                            }
+                           Content = listView
                         }
                     }
             };
+        }
+
+        async private void ParticipantTapped(object sender, ItemTappedEventArgs e)
+        {
+            var detailPage = new PersonPage((Person)e.Item);
+            await Navigation.PushAsync(detailPage);
         }
 
         private IEnumerable<Person> GetSavedParticipants()
         {
             var db = new Database();
             var persons = db.GetItems<Person>(meeting.InternalID);
+            foreach (var item in persons)
+            {
+                item.Organic = false;
+            }
             return persons;
         }
 
@@ -132,6 +154,11 @@ namespace heres.pages
         {
             var calendar = DependencyService.Get<ICalendar>();
             var res = calendar.GetParticipants(meeting);
+            foreach (var item in res)
+            {
+                item.ID = item.ContactID + 100000;
+                item.Organic = true;
+            }
             return new ObservableCollection<Person>(res);
         }
 

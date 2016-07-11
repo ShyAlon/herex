@@ -14,10 +14,12 @@
     <Compile Include="$(MSBuildThisFileDirectory)Database.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ICalendar.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ISQLite.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)pages\PersonPage.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)pages\SelectContactsPage.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)pages\EventPage.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)pages\EventsPage.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)poco\Meeting.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)poco\Role.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)poco\Person.cs" />
   </ItemGroup>
   <ItemGroup>

@@ -20,6 +20,7 @@ namespace heres
             // create the tables
             database.CreateTable<Meeting>();
             database.CreateTable<Person>();
+            database.CreateTable<Role>();
         }
 
         public IEnumerable<T> GetItems<T>(long parent = -1) where T : ItemBase,  new()
@@ -58,7 +59,8 @@ namespace heres
                 }
                 else
                 {
-                    return database.Insert(item);
+                    item.ID = database.Insert(item);
+                    return item.ID;
                 }
             }
         }
