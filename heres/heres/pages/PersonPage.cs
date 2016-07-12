@@ -92,10 +92,11 @@ namespace heres.pages
                     {
                         Name = newRole.Text,
                         ParentID = person.ID
-                    };
+                    }; 
                     var db = new Database();
                     db.SaveItem(r);
                     person.Roles.Add(r);
+                    newRole.Text = string.Empty;
                 }
             };
             newRole = new Entry() { };
@@ -107,7 +108,6 @@ namespace heres.pages
                 VerticalOptions = LayoutOptions.FillAndExpand,
                 HorizontalOptions = LayoutOptions.FillAndExpand,
                 ItemTemplate = dataTemplate,
-                BackgroundColor = Color.Pink
             };
 
             // listView.ItemTapped += ParticipantTapped;
@@ -129,7 +129,6 @@ namespace heres.pages
                             VerticalOptions = LayoutOptions.FillAndExpand,
                             HorizontalOptions = LayoutOptions.FillAndExpand,
                             Content = listView,
-                            BackgroundColor = Color.Yellow
                         }
                     }
             };
