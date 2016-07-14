@@ -13,5 +13,10 @@ namespace heres.poco
         {
             return Name;
         }
+
+        /// <summary>
+        /// The importance of the role - 0 means negligable and ushort.Max means critical
+        /// </summary>
+        public ushort Importance { get; set; }
     }
 }
