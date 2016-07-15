@@ -5,7 +5,7 @@ from users import users
 class ItemBase(ndb.Model):
     localId = ndb.IntegerProperty()
     status = ndb.IntegerProperty()
-    parentId = ndb.StringProperty()
+    parentId = ndb.IntegerProperty()
 
 class Meeting(ItemBase):
     """Model to store meetings as uploaded by users by 
@@ -20,7 +20,7 @@ class Meeting(ItemBase):
             persons = Person.get_persons(email, token);
             meetings = []
             for person in persons:
-                meeting = cls.query(cls.key.id() == person.parentId).fetch()
+                meeting = cls.get_by_id(person.parentId)
                 meetings.append(meeting)
             return meetings
 
