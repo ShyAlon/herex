@@ -2,7 +2,7 @@ import endpoints
 from protorpc import message_types
 from protorpc import messages
 from protorpc import remote
-from meetingsApi import MeetingApi, PersonApi
+from meetingsApi import MeetingApi, PersonApi, RoleApi
 
 class Greeting(messages.Message):
     """Greeting that stores a message."""
@@ -81,4 +81,4 @@ class GreetingApi(remote.Service):
     def multiply_greeting(self, request):
         return Greeting(message=request.message * request.times)
 
-api = endpoints.api_server([GreetingApi, MeetingApi, PersonApi])
+api = endpoints.api_server([GreetingApi, MeetingApi, PersonApi, RoleApi])
