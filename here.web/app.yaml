@@ -5,11 +5,18 @@ api_version: 1
 threadsafe: yes
 
 handlers:
-# The endpoints handler must be mapped to /_ah/spi.
-# Apps send requests to /_ah/api, but the endpoints service handles mapping
-# those requests to /_ah/spi.
+- url: /favicon\.ico
+  static_files: favicon.ico
+  upload: favicon\.ico
+
 - url: /_ah/spi/.*
   script: main.api
+
+- url: /events/.*
+  script: main.app
+
+- url: /
+  script: main.app
 
 libraries:
 - name: pycrypto

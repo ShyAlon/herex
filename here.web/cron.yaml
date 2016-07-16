@@ -1,0 +1,4 @@
+cron:
+- description: Track Events
+  url: /events/track
+  schedule: every 1 hours
