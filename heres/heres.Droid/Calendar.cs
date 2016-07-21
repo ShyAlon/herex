@@ -78,8 +78,8 @@ namespace heres.Droid
                         CalendarId = calId,
                         InternalID = eventcursor.GetLong(0),
                         Title = eventcursor.GetString(1),
-                        Start = GetTime(eventcursor.GetLong(2)),
-                        End = GetTime(eventcursor.GetLong(3))
+                        StartTime = GetTime(eventcursor.GetLong(2)),
+                        EndTime = GetTime(eventcursor.GetLong(3))
                     };
                     result.Add(m);
                 }
@@ -285,8 +285,8 @@ namespace heres.Droid
                     CalendarId = meeting.CalendarId,
                     InternalID = eventcursor.GetLong(0),
                     Title = eventcursor.GetString(1),
-                    Start = GetTime(eventcursor.GetLong(2)),
-                    End = GetTime(eventcursor.GetLong(3))
+                    StartTime = GetTime(eventcursor.GetLong(2)),
+                    EndTime = GetTime(eventcursor.GetLong(3))
                 };
                 return m;
             }

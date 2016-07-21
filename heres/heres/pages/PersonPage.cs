@@ -9,6 +9,7 @@ using System.Threading;
 using heres.components;
 using System.Reflection;
 using System.Collections.ObjectModel;
+using Here011362AppspotCom.Apis.Role.v1.Data;
 
 namespace heres.pages
 {
@@ -70,13 +71,13 @@ namespace heres.pages
             }
         }
 
-        private void ReadRoles()
+        private async void ReadRoles()
         {
-            var additional = GetSavedRoles();
+            var additional = await GetSavedRoles();
             person.Roles = new ObservableCollection<Role>(additional);
         }
 
-        private void CreateContent()
+        private async void CreateContent()
         {
             BindingContext = person;
             Title = person.Name;
@@ -84,7 +85,7 @@ namespace heres.pages
             {
                 Text = "Add Role"
             };
-            AddRole.Clicked += (s, e) =>
+            AddRole.Clicked += async (s, e) =>
             {
                 if (!string.IsNullOrWhiteSpace(newRole.Text))
                 {
@@ -92,9 +93,9 @@ namespace heres.pages
                     {
                         Name = newRole.Text,
                         ParentID = person.ID
-                    }; 
+                    };
                     var db = new Database();
-                    db.SaveItem(r);
+                    await db.SaveItem(r);
                     person.Roles.Add(r);
                     newRole.Text = string.Empty;
                 }
@@ -136,11 +137,11 @@ namespace heres.pages
 
         public bool HasRole() => !string.IsNullOrWhiteSpace(newRole.Text);
 
-        private IEnumerable<Role> GetSavedRoles()
+        private async Task<IEnumerable<Role>> GetSavedRoles()
         {
             var db = new Database();
-            var roles = db.GetItems<Role>(person.ID);
-            return roles;
+            var roles = await db.GetItems<Role>(person.ID);
+            return roles.items;
         }
     }
 }

@@ -19,7 +19,13 @@ handlers:
   script: main.app
 
 libraries:
+
+- name: webapp2
+  version: latest
+
+- name: endpoints
+  version: latest
+
 - name: pycrypto
   version: 2.6
-- name: endpoints
-  version: 1.0
+

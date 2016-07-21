@@ -2,10 +2,8 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 using Xamarin.Forms;
-using System.Threading;
 using heres.components;
 
 namespace heres.pages
@@ -39,35 +37,11 @@ namespace heres.pages
             };
             Content = layout;
 
-
-            var start = new Task(() =>
+            this.ToolbarItems.Add(new ToolbarItem
             {
-                var dialer = DependencyService.Get<ICalendar>();
-                var res = dialer.GetEvents();
-                // End time serves to remove all day events
-                meetings = (from e in res
-                            where e.Start > DateTime.Now && e.End > DateTime.Now
-                            orderby e.Start ascending
-                            select e).ToDictionary(x => x.InternalID);
-                var db = new Database();
-                var persisted = db.GetItems<Meeting>().ToDictionary(x => x.InternalID);
-
-                foreach (var item in meetings.Values)
-                {
-                    item.Tracked = (persisted.ContainsKey(item.InternalID));
-                    if(item.Tracked)
-                    {
-                        item.ID = persisted[item.InternalID].ID;
-                    }
-                }
-
-                Device.BeginInvokeOnMainThread(() =>
-                {
-                    GenerateList();
-                });
+                Icon = "settings.png",
+                Command = new Command(() => Navigation.PushAsync(new SettingsPage()))
             });
-
-            start.Start();
         }
 
         private void GenerateList()
@@ -104,15 +78,51 @@ namespace heres.pages
 
         protected override void OnAppearing()
         {
-            base.OnAppearing();
-            if(list != null)
-            {
-                list.SelectedItem = null;
-            };
+            var email = new Database().GetSetting("email");
+            var val = new Database().GetSetting("password");
 
-            if(meetings != null && meetings.Count > 0)
+            if (string.IsNullOrEmpty(email))
             {
-                GenerateList();
+                var page = new SettingsPage();
+                Navigation.PushAsync(page);
+            }
+            var start = new Task(async () =>
+             {
+                 var dialer = DependencyService.Get<ICalendar>();
+                 var res = dialer.GetEvents();
+                 // End time serves to remove all day events
+                 meetings = (from e in res
+                             where e.StartTime > DateTime.Now && e.EndTime > DateTime.Now
+                             orderby e.StartTime ascending
+                             select e).ToDictionary(x => x.InternalID);
+                 var db = new Database();
+                 var temp = await db.GetItems<Meeting>(email);
+                 var persisted = temp.items.ToDictionary(x => x.InternalID);
+
+                 foreach (var item in meetings.Values)
+                 {
+                     item.Tracked = (persisted.ContainsKey(item.InternalID));
+                     if (item.Tracked)
+                     {
+                         item.ID = persisted[item.InternalID].ID;
+                     }
+                 }
+
+                 foreach (var item in persisted.Values)
+                 {
+                     item.Tracked = true;
+                     item.InternalID = 0;
+                     meetings[item.ID] = item;
+                 }
+
+                 Device.BeginInvokeOnMainThread(() =>
+                 {
+                     GenerateList();
+                 });
+             });
+            {
+                start.ContinueWith((t) => start.Dispose());
+                start.Start();
             }
         }
 

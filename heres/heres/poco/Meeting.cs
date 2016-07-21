@@ -5,81 +5,42 @@ using System.Text;
 
 namespace heres.poco
 {
-    public abstract class ItemBase
+    public abstract class ItemBase : Google.Apis.Requests.IDirectResponseSchema
     {
         /// <summary>
         /// The id of the event in the database
         /// </summary>
         [PrimaryKey, AutoIncrement]
+        [Newtonsoft.Json.JsonPropertyAttribute("id")]
         public long ID { get; set; }
 
         /// <summary>
         /// The parent / container
         /// </summary>
         public long ParentID { get; set; }
+
+        /// <summary>The ETag of the item.</summary>
+        public virtual string ETag { get; set; }
     }
 
     public class Meeting : ItemBase
     {
         [Unique]
         public long InternalID { get; set; }
+
+        [Newtonsoft.Json.JsonPropertyAttribute("title")]
         public string Title { get; set; }
-        public DateTime Start { get; set; }
-        public DateTime End { get; set; }
-        [Ignore]
-        public DateTime StartDate
-        {
-            get
-            {
-                return Start.Date;
-            }
-            set
-            {
-                Start = value + StartTime;
-            }
-        }
-        [Ignore]
-        public DateTime EndDate
-        {
-            get
-            {
-                return End.Date;
-            }
-            set
-            {
-                End = value + EndTime;
-            }
-        }
-        [Ignore]
-        public TimeSpan StartTime
-        {
-            get
-            {
-                return Start.TimeOfDay;
-            }
-            set
-            {
-                Start = StartDate + value;
-            }
-        }
-        [Ignore]
-        public TimeSpan EndTime
-        {
-            get
-            {
-                return End.TimeOfDay;
-            }
-            set
-            {
-                End = End.Date + value;
-            }
-        }
+
+        [Newtonsoft.Json.JsonPropertyAttribute("startTime")]
+        public DateTime StartTime { get; set; }
+
+        public DateTime EndTime { get; set; }
         public long CalendarId { get; set; }
         public string StartString
         {
             get
             {
-                return Start.ToShortDateString() + " " + Start.ToShortTimeString();
+                return StartTime.ToShortDateString() + " " + StartTime.ToShortTimeString();
             }
         }
         [Ignore]
@@ -87,5 +48,15 @@ namespace heres.poco
 
         [Ignore]
         public ICollection<Person> Participants {get;set;}
+    }
+
+
+    public class MeetingsApiMeetingsCollection : Google.Apis.Requests.IDirectResponseSchema
+    {
+        [Newtonsoft.Json.JsonPropertyAttribute("items")]
+        public virtual System.Collections.Generic.IList<Meeting> Items { get; set; }
+
+        /// <summary>The ETag of the item.</summary>
+        public virtual string ETag { get; set; }
     }
 }

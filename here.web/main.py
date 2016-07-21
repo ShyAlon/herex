@@ -1,16 +1,12 @@
-import endpoints
-from protorpc import message_types
-from protorpc import messages
-from protorpc import remote
 from meetingsApi import MeetingApi, PersonApi, RoleApi
 from models import Meeting, Person, Role
 from google.appengine.ext import ndb
+import endpoints
 import logging
 import webapp2
 import datetime
 
 EVENTS_PREFIX = "/events/"
-
 
 class MainHandler(webapp2.RequestHandler):
     def get(self):

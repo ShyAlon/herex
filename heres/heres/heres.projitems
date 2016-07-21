@@ -14,13 +14,18 @@
     <Compile Include="$(MSBuildThisFileDirectory)Database.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ICalendar.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ISQLite.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)pages\SettingsPage.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)pages\PersonPage.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)pages\SelectContactsPage.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)pages\EventPage.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)pages\EventsPage.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)poco\CollectionOf.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)poco\Meeting.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)poco\Role.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)poco\Person.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)remote\Here011362AppspotCom.Apis.Meeting.v1.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)remote\Here011362AppspotCom.Apis.Person.v1.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)remote\Here011362AppspotCom.Apis.Role.v1.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="$(MSBuildThisFileDirectory)GettingStarted.Xamarin" />

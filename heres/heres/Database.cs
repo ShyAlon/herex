@@ -5,15 +5,34 @@ using System.Collections.Generic;
 using System.Text;
 using Xamarin.Forms;
 using System.Linq;
+using System.Net.Http;
+using Newtonsoft.Json;
+using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace heres
 {
+    public class Settings
+    {
+        [PrimaryKey]
+        public string Key { get; set; }
+        public string Value { get; set; }
+    }
+    /// <summary>
+    /// Encapsulates local and remote database
+    /// </summary>
     class Database
     {
         static readonly object locker = new object();
-
         private readonly SQLiteConnection database;
+        private readonly HttpClient client;
+        const string API_Access_Key = "AIzaSyBBkdUYzIxX9uiYpZv4un8lgq-1CyH6Vc0";
+        private const string uriStrId = @"https://here01-1362.appspot.com/_ah/api/meeting/v1/{0}s/{1}";
+        private const string uriStr = @"https://here01-1362.appspot.com/_ah/api/meeting/v1/{0}s";
 
+        /// <summary>
+        /// Verify the local tables exist
+        /// </summary>
         public Database()
         {
             database = DependencyService.Get<ISQLite>().GetConnection();
@@ -21,64 +40,121 @@ namespace heres
             database.CreateTable<Meeting>();
             database.CreateTable<Person>();
             database.CreateTable<Role>();
+            database.CreateTable<Settings>();
+
+            client = new HttpClient
+            {
+                MaxResponseContentBufferSize = 256000
+            };
         }
 
-        public IEnumerable<T> GetItems<T>(long parent = -1) where T : ItemBase,  new()
+        internal void SaveSettings(string key, string value)
         {
-            lock (locker)
+            var existing = database.Table<Settings>().FirstOrDefault(s => s.Key == key);
+            if (existing != null)
             {
-                if(parent < 0)
+                existing.Value = value;
+                database.Update(existing);
+            }
+            else
+            {
+                var settings = new Settings
                 {
-                    return (from i in database.Table<T>() select i).ToList();
+                    Key = key,
+                    Value = value
+                };
+                database.Insert(settings);
+            }
+        }
+
+        public string GetSetting(string key)
+        {
+            var existing = database.Table<Settings>().FirstOrDefault(s => s.Key == key);
+            return existing == null ? null : existing.Value;
+        }
+
+        public async Task<CollectionOf<T>> GetItems<T>(object parent) where T : ItemBase, new()
+        {
+            try
+            {
+                CollectionOf<T> items = null;
+                var uri = new Uri(string.Format(uriStrId, typeof(T).Name.ToLower(), parent == null ? string.Empty : Uri.EscapeDataString(parent.ToString())));
+                var response = await client.GetAsync(uri);
+                if (response.IsSuccessStatusCode)
+                {
+                    var content = await response.Content.ReadAsStringAsync();
+                    items = JsonConvert.DeserializeObject<CollectionOf<T>>(content);
                 }
                 else
                 {
-                    return (from i in database.Table<T>()
-                            where i.ParentID == parent
-                            select i).ToList();
+                    items = new CollectionOf<T>
+                    {
+                        items = new List<T>()
+                    };
                 }
+                return items;
             }
-        }
-
-        public T GetItem<T>(int id) where T : ItemBase, new()
-        {
-            lock (locker)
+            catch (Exception ex)
             {
-                return database.Table<T>().FirstOrDefault(x => x.ID == id);
+                Debug.Print(ex.ToString());
+                throw;
             }
         }
 
-        public long SaveItem<T>(T item) where T : ItemBase,  new()
+        public async Task<long> SaveItem<T>(T item) where T : ItemBase, new()
         {
-            lock (locker)
+            try
             {
                 if (item.ID != 0)
                 {
-                    database.Update(item);
+                    lock (locker)
+                    {
+                        database.Update(item);
+                    }
                     return item.ID;
                 }
                 else
                 {
-                    item.ID = database.Insert(item);
+                    // POST https://here01-1362.appspot.com/_ah/api/meeting/v1/meetings
+
+                    var uri = new Uri(string.Format(uriStr, typeof(T).Name.ToLower()));
+                    var json = JsonConvert.SerializeObject(item);
+                    var content = new StringContent(json, Encoding.UTF8, "application/json");
+
+                    HttpResponseMessage response = null;
+                    if (item.ID == 0)
+                    {
+                        response = await client.PostAsync(uri, content);
+                    }
+                    else
+                    {
+                        response = await client.PutAsync(uri, content);
+                    }
+
+                    if (response.IsSuccessStatusCode)
+                    {
+                        var res = await response.Content.ReadAsStringAsync();
+                        item = JsonConvert.DeserializeObject<T>(res);
+                    }
                     return item.ID;
                 }
             }
-        }
-
-        public int DeleteItem<T>(long id) where T : ItemBase, new()
-        {
-            lock (locker)
+            catch (Exception ex)
             {
-                return database.Delete<T>(id);
+                Debug.WriteLine(@"Fail");
+                Debug.WriteLine(ex.ToString());
+                throw;
             }
         }
 
-        public int DeleteItem<T>(T item) where T : ItemBase, new()
+        public async Task<int> DeleteItem<T>(long id) where T : ItemBase, new()
         {
-            lock (locker)
-            {
-                return database.Delete<T>(item.ID);
-            }
+            return database.Delete<T>(id);
+        }
+
+        public async Task<int> DeleteItem<T>(T item) where T : ItemBase, new()
+        {
+            return database.Delete<T>(item.ID);
         }
     }
 }

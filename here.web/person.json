@@ -1,0 +1,169 @@
+{
+ "kind": "discovery#restDescription",
+ "etag": "\"zRMgE0l9nVDW4S28VYYcYQF9UW4/je5nMuOYC9t_Prf9zgcFrrvQ_VA\"",
+ "discoveryVersion": "v1",
+ "id": "person:v1",
+ "name": "person",
+ "version": "v1",
+ "description": "This is an API",
+ "icons": {
+  "x16": "http://www.google.com/images/icons/product/search-16.gif",
+  "x32": "http://www.google.com/images/icons/product/search-32.gif"
+ },
+ "protocol": "rest",
+ "baseUrl": "https://here01-1362.appspot.com/_ah/api/person/v1/",
+ "basePath": "/_ah/api/person/v1/",
+ "rootUrl": "https://here01-1362.appspot.com/_ah/api/",
+ "servicePath": "person/v1/",
+ "batchPath": "batch",
+ "parameters": {
+  "alt": {
+   "type": "string",
+   "description": "Data format for the response.",
+   "default": "json",
+   "enum": [
+    "json"
+   ],
+   "enumDescriptions": [
+    "Responses with Content-Type of application/json"
+   ],
+   "location": "query"
+  },
+  "fields": {
+   "type": "string",
+   "description": "Selector specifying which fields to include in a partial response.",
+   "location": "query"
+  },
+  "key": {
+   "type": "string",
+   "description": "API key. Your API key identifies your project and provides you with API access, quota, and reports. Required unless you provide an OAuth 2.0 token.",
+   "location": "query"
+  },
+  "oauth_token": {
+   "type": "string",
+   "description": "OAuth 2.0 token for the current user.",
+   "location": "query"
+  },
+  "prettyPrint": {
+   "type": "boolean",
+   "description": "Returns response with indentations and line breaks.",
+   "default": "true",
+   "location": "query"
+  },
+  "quotaUser": {
+   "type": "string",
+   "description": "Available to use for quota purposes for server-side applications. Can be any arbitrary string assigned to a user, but should not exceed 40 characters. Overrides userIp if both are provided.",
+   "location": "query"
+  },
+  "userIp": {
+   "type": "string",
+   "description": "IP address of the site where the request originates. Use this if you want to enforce per-user limits.",
+   "location": "query"
+  }
+ },
+ "auth": {
+  "oauth2": {
+   "scopes": {
+    "https://www.googleapis.com/auth/userinfo.email": {
+     "description": "View your email address"
+    }
+   }
+  }
+ },
+ "schemas": {
+  "MeetingsApiPersonMsg": {
+   "id": "MeetingsApiPersonMsg",
+   "type": "object",
+   "properties": {
+    "email": {
+     "type": "string"
+    },
+    "id": {
+     "type": "string",
+     "format": "int64"
+    },
+    "meeting": {
+     "type": "string",
+     "format": "int64"
+    },
+    "name": {
+     "type": "string"
+    }
+   }
+  },
+  "MeetingsApiPersonsCollection": {
+   "id": "MeetingsApiPersonsCollection",
+   "type": "object",
+   "properties": {
+    "items": {
+     "type": "array",
+     "items": {
+      "$ref": "MeetingsApiPersonMsg"
+     }
+    }
+   }
+  }
+ },
+ "resources": {
+  "persons": {
+   "methods": {
+    "create": {
+     "id": "person.persons.create",
+     "path": "persons",
+     "httpMethod": "POST",
+     "request": {
+      "$ref": "MeetingsApiPersonMsg",
+      "parameterName": "resource"
+     },
+     "response": {
+      "$ref": "MeetingsApiPersonMsg"
+     },
+     "scopes": [
+      "https://www.googleapis.com/auth/userinfo.email"
+     ]
+    },
+    "delete": {
+     "id": "person.persons.delete",
+     "path": "persons/{id}",
+     "httpMethod": "DELETE",
+     "parameters": {
+      "id": {
+       "type": "integer",
+       "required": true,
+       "format": "int32",
+       "location": "path"
+      }
+     },
+     "parameterOrder": [
+      "id"
+     ],
+     "scopes": [
+      "https://www.googleapis.com/auth/userinfo.email"
+     ]
+    },
+    "list": {
+     "id": "person.persons.list",
+     "path": "persons/{id}",
+     "httpMethod": "GET",
+     "parameters": {
+      "id": {
+       "type": "integer",
+       "required": true,
+       "format": "int32",
+       "location": "path"
+      }
+     },
+     "parameterOrder": [
+      "id"
+     ],
+     "response": {
+      "$ref": "MeetingsApiPersonsCollection"
+     },
+     "scopes": [
+      "https://www.googleapis.com/auth/userinfo.email"
+     ]
+    }
+   }
+  }
+ }
+}

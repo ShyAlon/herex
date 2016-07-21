@@ -77,6 +77,23 @@ class MeetingApi(remote.Service):
         res = MeetingMsg(id=mm.put().id(), title=request.title, startTime=request.startTime)
         return res
 
+    @endpoints.method(  MeetingMsg,
+                        MeetingMsg,
+                        http_method='PUT',
+                        path='meetings/{id}',
+                        name='meetings.update')
+    def update(self, request):
+        mm = Meeting.get_by_id(request.id)
+        if not mm:
+            message = 'No meeting with the id "%s" exists.' % request.id
+            raise endpoints.NotFoundException(message)
+
+        mm.title = request.title
+        mm.startTime = request.startTime
+        mm.put()
+        res = MeetingMsg(id=mm.put().id(), title=mm.title, startTime=mm.startTime)
+        return res
+
     @endpoints.method(GET_RESOURCE,
             message_types.VoidMessage,
             path='meetings/{id}',
