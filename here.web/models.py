@@ -12,6 +12,8 @@ class Meeting(ItemBase):
     """
     title = ndb.StringProperty(required=True)
     startTime = ndb.DateTimeProperty(required=True)
+    internalId = ndb.IntegerProperty()
+    originator = ndb.StringProperty()
     # player = ndb.UserProperty(required=True)
     @classmethod
     def get_meetings(cls, email, token):

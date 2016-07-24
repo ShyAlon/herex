@@ -40,7 +40,7 @@ namespace heres.pages
             this.ToolbarItems.Add(new ToolbarItem
             {
                 Icon = "settings.png",
-                Command = new Command(() => Navigation.PushAsync(new SettingsPage()))
+                Command = new Command(() => Navigation.PushAsync(new AccountsPage()))
             });
         }
 
@@ -76,54 +76,84 @@ namespace heres.pages
             await Navigation.PushAsync(page);
         }
 
+        private bool ValidEmail(IList<Settings> email)
+        {
+            if (email == null || email.Count == 0)
+            {
+                return false;
+            }
+            var valid = (from s in email
+                         where s.Key == Settings.email && !String.IsNullOrEmpty(s.Value)
+                         select s.ID).Count();
+            return valid > 0;
+        }
+
         protected override void OnAppearing()
         {
-            var email = new Database().GetSetting("email");
-            var val = new Database().GetSetting("password");
+            var email = (from s in new Database().GetDBItems<Settings>()
+                         where s.Key == Settings.email
+                         select s).ToList();
 
-            if (string.IsNullOrEmpty(email))
+            if (!ValidEmail(email))
             {
-                var page = new SettingsPage();
-                Navigation.PushAsync(page);
+                Navigation.PushAsync(new AccountsPage());
             }
-            var start = new Task(async () =>
+            Task start = null;
+            start = new Task(async () =>
              {
-                 var dialer = DependencyService.Get<ICalendar>();
-                 var res = dialer.GetEvents();
-                 // End time serves to remove all day events
-                 meetings = (from e in res
-                             where e.StartTime > DateTime.Now && e.EndTime > DateTime.Now
-                             orderby e.StartTime ascending
-                             select e).ToDictionary(x => x.InternalID);
-                 var db = new Database();
-                 var temp = await db.GetItems<Meeting>(email);
-                 var persisted = temp.items.ToDictionary(x => x.InternalID);
-
-                 foreach (var item in meetings.Values)
+                 try
                  {
-                     item.Tracked = (persisted.ContainsKey(item.InternalID));
-                     if (item.Tracked)
+                     var dialer = DependencyService.Get<ICalendar>();
+                     var res = dialer.GetEvents();
+                     // End time serves to remove all day events
+                     meetings = (from e in res
+                                 where e.StartTime > DateTime.Now && e.EndTime > DateTime.Now
+                                 orderby e.StartTime ascending
+                                 select e).ToDictionary(x => x.InternalID);
+                     var db = new Database();
+                     foreach (var address in email)
                      {
-                         item.ID = persisted[item.InternalID].ID;
+                         var temp = await db.GetItems<Meeting>(address.Value);
+                         var persisted = (temp == null || temp.items == null) ? new Dictionary<long, Meeting>() : CreateDictionary(temp);
+
+                         foreach (var item in persisted.Values)
+                         {
+                             var f = (from a in email
+                                      where a.Value.Equals(item.Originator)
+                                      select a).FirstOrDefault();
+                             if(f != null) // This is the originator
+                             {
+                                 meetings[item.InternalID] = item;
+                                 meetings[item.InternalID].Tracked = true;
+                             }
+                         }
                      }
+                     Device.BeginInvokeOnMainThread(() =>
+                     {
+                         GenerateList();
+                         start.Dispose();
+                     });
+                 }
+                 catch (Exception ex)
+                 {
+                     Console.WriteLine(ex);
+                     throw;
                  }
 
-                 foreach (var item in persisted.Values)
-                 {
-                     item.Tracked = true;
-                     item.InternalID = 0;
-                     meetings[item.ID] = item;
-                 }
-
-                 Device.BeginInvokeOnMainThread(() =>
-                 {
-                     GenerateList();
-                 });
              });
             {
-                start.ContinueWith((t) => start.Dispose());
                 start.Start();
             }
+        }
+
+        private Dictionary<long, Meeting> CreateDictionary(CollectionOf<Meeting> temp)
+        {
+            var res = new Dictionary<long, Meeting>();
+            foreach (var item in temp.items)
+            {
+                res[item.InternalID] = item;
+            }
+            return res;
         }
 
         public class PageTypeGroup : List<Meeting>

@@ -1,5 +1,6 @@
 ﻿using heres.poco;
 using System;
+using System.Linq;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Xamarin.Forms;
@@ -34,11 +35,11 @@ namespace heres.pages
                 }
             }
 
-            private void Delete(object sender, EventArgs e)
+            private async void Delete(object sender, EventArgs e)
             {
                 var p = (Person)BindingContext;
                 var db = new Database();
-                db.DeleteItem(p);
+                await db.DeleteItem(p);
                 EventPage.RefreshList(sender, e);
             }
         }
@@ -70,12 +71,24 @@ namespace heres.pages
 
         private async void ReadParticipants()
         {
-            meeting.Participants = GetParticipants();
-            var additional = await GetSavedParticipants();
-            foreach (var item in additional)
+            try
             {
-                meeting.Participants.Add(item);
+                meeting.Participants = GetParticipants();
+                var additional = await GetSavedParticipants();
+                if (additional != null)
+                {
+                    foreach (var item in additional)
+                    {
+                        meeting.Participants.Add(item);
+                    }
+                }
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                throw;
+            }
+            
         }
 
         private void CreateContent()
@@ -139,10 +152,13 @@ namespace heres.pages
             try
             {
                 var db = new Database();
-                var persons = await db.GetItems<Person>(meeting.InternalID);
-                foreach (var item in persons.items)
+                var persons = await db.GetItems<Person>(meeting.ID);
+                if (persons != null && persons.items != null)
                 {
-                    item.Organic = false;
+                    foreach (var item in persons.items)
+                    {
+                        item.Organic = false;
+                    }
                 }
                 return persons.items;
             }
@@ -190,9 +206,12 @@ namespace heres.pages
             base.OnAppearing();
             var calendar = DependencyService.Get<ICalendar>();
             var m = calendar.GetEvent(meeting);
-            meeting.StartTime = m.StartTime;
-            meeting.EndTime = m.EndTime;
-            meeting.Title = m.Title;
+            if (m != null)
+            {
+                meeting.StartTime = m.StartTime;
+                meeting.EndTime = m.EndTime;
+                meeting.Title = m.Title;
+            }
             Title = meeting.Title;
             section.Title = Title;
         }
@@ -210,9 +229,27 @@ namespace heres.pages
         private async void Tracking_OnChanged(object sender, ToggledEventArgs e)
         {
             var db = new Database();
+            var addresses = from s in db.GetDBItems<Settings>()
+                               where s.Key == Settings.email && !String.IsNullOrEmpty(s.Value)
+                               select s;
+            var min = addresses.Min(s => s.ID);
+            var primaryEmail = addresses.FirstOrDefault(s => s.ID == min).Value;
+
             if (e.Value)
             {
-                await db.SaveItem(meeting).ContinueWith((res) => meeting.ID = res.Result);
+                meeting.Originator = primaryEmail;
+                await db.SaveItem(meeting).ContinueWith(async (res) =>
+                {
+                    meeting.ID = res.Result;
+                    var participant = new Person
+                    {
+                        ParentID = meeting.ID,
+                        Name = db.GetSetting(Settings.name),
+                        IsOrganizer = 1,
+                        Email = primaryEmail,
+                    };
+                    participant.ID = await db.SaveItem(participant);
+                });
             }
             else
             {

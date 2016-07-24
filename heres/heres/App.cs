@@ -12,7 +12,6 @@ namespace heres
 	{
 		public App ()
 		{
-            // The root page of your application
             MainPage = new NavigationPage(new EventsPage() { Title = "Coming Events" });
         }
 

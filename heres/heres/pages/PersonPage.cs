@@ -38,11 +38,11 @@ namespace heres.pages
                 ContextActions.Add(deleteAction);
             }
 
-            private void Delete(object sender, EventArgs e)
+            private async void Delete(object sender, EventArgs e)
             {
                 var p = (Role)BindingContext;
                 var db = new Database();
-                db.DeleteItem(p);
+                await db.DeleteItem(p);
                 PersonPage.RefreshList(sender, e);
             }
         }

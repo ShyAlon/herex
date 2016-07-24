@@ -14,11 +14,7 @@ namespace heres.pages
 {
     public class SelectContactsPage : ContentPage
     {
-        private readonly SwitchCell tracking;
         private readonly Meeting meeting;
-        private readonly TableSection section;
-        private ObservableCollection<Person> participants;
-        private DataTemplate dataTemplate;
 
         public SelectContactsPage(Meeting _meeting)
         {
@@ -26,7 +22,16 @@ namespace heres.pages
             {
                 meeting = _meeting;
                 var calendar = DependencyService.Get<ICalendar>();
-                var res = calendar.GetParticipantNames();
+                var temp = calendar.GetParticipantNames().OrderBy(s => s);
+                var lookup = meeting.Participants.ToLookup(p => p.Name);
+                var res = new List<string>();
+                foreach (var item in temp)
+                {
+                    if(!lookup.Contains(item))
+                    {
+                        res.Add(item);
+                    }
+                }
                 var lv = new ListView
                 {
                     Header = "Contacts",
@@ -44,7 +49,7 @@ namespace heres.pages
             }
         }
 
-        private void ContactSelected(object sender, ItemTappedEventArgs e)
+        private async void ContactSelected(object sender, ItemTappedEventArgs e)
         {
             try
             {
@@ -54,11 +59,11 @@ namespace heres.pages
                 }
                 var calendar = DependencyService.Get<ICalendar>();
                 var p = calendar.GetContact(e.Item.ToString());
+                p.ParentID = meeting.ID;
                 meeting.Participants.Add(p);
-                p.ParentID = meeting.InternalID;
                 var db = new Database();
-                db.SaveItem(p);
-                Navigation.PopAsync();
+                var id = await db.SaveItem(p);
+                await Navigation.PopAsync();
             }
             catch (Exception ex)
             {

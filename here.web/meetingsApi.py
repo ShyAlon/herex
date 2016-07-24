@@ -5,10 +5,25 @@ from protorpc import remote
 from models import Meeting, Person, Role
 import datetime
 
+def meeting2Msg(meeting):
+    res = MeetingMsg()
+    res.id = meeting.key.id()
+    res.title = meeting.title
+    res.startTime = meeting.startTime
+    res.internalId = meeting.internalId # the local id at the originator's device
+    res.originator = meeting.originator
+    return res
+
+def toMeeting(msg):
+    mm = Meeting(title=msg.title, startTime=msg.startTime, internalId=msg.internalId, originator=msg.originator);
+    return mm
+
 class MeetingMsg(messages.Message):
     id = messages.IntegerField(1)
     title = messages.StringField(2)
     startTime = message_types.DateTimeField(3)
+    internalId = messages.IntegerField(4) # the local id at the originator's device
+    originator = messages.StringField(5)
 
 class MeetingsCollection(messages.Message):
     items = messages.MessageField(MeetingMsg, 1, repeated=True)
@@ -17,7 +32,7 @@ class PersonMsg(messages.Message):
     id = messages.IntegerField(1)
     name = messages.StringField(2)
     email = messages.StringField(3)
-    meeting = messages.IntegerField(4)
+    parentId = messages.IntegerField(4) # the meeting
 
 class PersonsCollection(messages.Message):
     items = messages.MessageField(PersonMsg, 1, repeated=True)
@@ -35,7 +50,7 @@ GET_RESOURCE = endpoints.ResourceContainer(
     # The request body should be empty.
     message_types.VoidMessage,
     # Accept one url parameter: and integer named 'id'
-    id=messages.IntegerField(1, variant=messages.Variant.INT32))
+    id=messages.IntegerField(1, variant=messages.Variant.INT64))
 
 GET_BY_STRING = endpoints.ResourceContainer(
     # The request body should be empty.
@@ -43,7 +58,7 @@ GET_BY_STRING = endpoints.ResourceContainer(
     # Accept one url parameter: and integer named 'id'
     userId=messages.StringField(1))
 
-@endpoints.api(name='meeting', version='v1')
+@endpoints.api(name='meeting', version='v2')
 class MeetingApi(remote.Service):
     @endpoints.method(
         # This method does not take a request message.
@@ -58,8 +73,7 @@ class MeetingApi(remote.Service):
         # meetings = Meeting.query().fetch()
         res = MeetingsCollection()
         for meeting in meetings:
-            msg = MeetingMsg(title='Shy', startTime=datetime.datetime.now(), id=meeting.key.id())
-            res.items.append(msg)
+            res.items.append(meeting2Msg(meeting))
         return res
 
     @endpoints.method(
@@ -73,8 +87,9 @@ class MeetingApi(remote.Service):
         http_method='POST',
         name='meetings.create')
     def create_meeting(self, request):
-        mm = Meeting(title=request.title, startTime=request.startTime);
-        res = MeetingMsg(id=mm.put().id(), title=request.title, startTime=request.startTime)
+        mm = toMeeting(request) # Meeting(title=request.title, startTime=request.startTime);
+        mm.put();
+        res = meeting2Msg(mm)
         return res
 
     @endpoints.method(  MeetingMsg,
@@ -113,7 +128,7 @@ class MeetingApi(remote.Service):
         except (IndexError, TypeError):
             raise endpoints.NotFoundException('Role %s not found.' % (request.id,))
 
-@endpoints.api(name='person', version='v1')
+@endpoints.api(name='person', version='v2')
 class PersonApi(remote.Service):
     @endpoints.method(
         # This method does not take a request message.
@@ -128,7 +143,7 @@ class PersonApi(remote.Service):
         # meetings = Meeting.query().fetch()
         res = PersonsCollection()
         for person in persons:
-            msg = PersonMsg(name=person.name, id=person.key.id(), email=person.email, meeting=request.id)
+            msg = PersonMsg(name=person.name, id=person.key.id(), email=person.email, parentId=request.id)
             res.items.append(msg)
         return res
 
@@ -143,8 +158,8 @@ class PersonApi(remote.Service):
         http_method='POST',
         name='persons.create')
     def create_person(self, request):
-        mm = Person(name=request.name, email=request.email, parentId=request.meeting);
-        res = PersonMsg(id=mm.put().id(), name=request.name, email=request.email, meeting=request.meeting)
+        mm = Person(name=request.name, email=request.email, parentId=request.parentId);
+        res = PersonMsg(id=mm.put().id(), name=request.name, email=request.email, parentId=request.parentId)
         return res
 
     @endpoints.method(GET_RESOURCE,
@@ -163,7 +178,7 @@ class PersonApi(remote.Service):
         except (IndexError, TypeError):
             raise endpoints.NotFoundException('Role %s not found.' % (request.id,))
 
-@endpoints.api(name='role', version='v1')
+@endpoints.api(name='role', version='v2')
 class RoleApi(remote.Service):
     @endpoints.method(
         # This method does not take a request message.

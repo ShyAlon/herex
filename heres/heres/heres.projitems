@@ -14,6 +14,7 @@
     <Compile Include="$(MSBuildThisFileDirectory)Database.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ICalendar.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)ISQLite.cs" />
+    <Compile Include="$(MSBuildThisFileDirectory)pages\AccountsPage.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)pages\SettingsPage.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)pages\PersonPage.cs" />
     <Compile Include="$(MSBuildThisFileDirectory)pages\SelectContactsPage.cs" />

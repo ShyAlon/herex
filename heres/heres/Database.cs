@@ -12,11 +12,18 @@ using System.Threading.Tasks;
 
 namespace heres
 {
-    public class Settings
+    public class Settings : IID
     {
-        [PrimaryKey]
+        [PrimaryKey, AutoIncrement]
+        [Newtonsoft.Json.JsonPropertyAttribute("id")]
+        public long ID { get; set; }
+
         public string Key { get; set; }
         public string Value { get; set; }
+
+        public const string email = "email";
+        public const string pin = "PIN";
+        public const string name = "name";
     }
     /// <summary>
     /// Encapsulates local and remote database
@@ -27,8 +34,8 @@ namespace heres
         private readonly SQLiteConnection database;
         private readonly HttpClient client;
         const string API_Access_Key = "AIzaSyBBkdUYzIxX9uiYpZv4un8lgq-1CyH6Vc0";
-        private const string uriStrId = @"https://here01-1362.appspot.com/_ah/api/meeting/v1/{0}s/{1}";
-        private const string uriStr = @"https://here01-1362.appspot.com/_ah/api/meeting/v1/{0}s";
+        private const string uriStrId = @"https://here01-1362.appspot.com/_ah/api/{0}/v2/{0}s/{1}";
+        private const string uriStr = @"https://here01-1362.appspot.com/_ah/api/{0}/v2/{0}s";
 
         /// <summary>
         /// Verify the local tables exist
@@ -40,6 +47,7 @@ namespace heres
             database.CreateTable<Meeting>();
             database.CreateTable<Person>();
             database.CreateTable<Role>();
+            // database.DropTable<Settings>();
             database.CreateTable<Settings>();
 
             client = new HttpClient
@@ -73,6 +81,11 @@ namespace heres
             return existing == null ? null : existing.Value;
         }
 
+        public IList<T> GetDBItems<T>() where T : new()
+        {
+            return database.Table<T>().ToList();
+        }
+
         public async Task<CollectionOf<T>> GetItems<T>(object parent) where T : ItemBase, new()
         {
             try
@@ -101,6 +114,33 @@ namespace heres
             }
         }
 
+        public void SaveDBItem<T>(T item) where T : IID,  new()
+        {
+            try
+            {
+                if (item.ID != 0)
+                {
+                    lock (locker)
+                    {
+                        database.Update(item);
+                    }
+                }
+                else
+                {
+                    lock (locker)
+                    {
+                        database.Insert(item);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine(@"Fail");
+                Debug.WriteLine(ex.ToString());
+                throw;
+            }
+        }
+
         public async Task<long> SaveItem<T>(T item) where T : ItemBase, new()
         {
             try
@@ -116,6 +156,8 @@ namespace heres
                 else
                 {
                     // POST https://here01-1362.appspot.com/_ah/api/meeting/v1/meetings
+                    // POST https://here01-1362.appspot.com/_ah/api/person/v1/persons
+                    // POST https://here01-1362.appspot.com/_ah/api/person/v1/persons
 
                     var uri = new Uri(string.Format(uriStr, typeof(T).Name.ToLower()));
                     var json = JsonConvert.SerializeObject(item);
@@ -136,6 +178,11 @@ namespace heres
                         var res = await response.Content.ReadAsStringAsync();
                         item = JsonConvert.DeserializeObject<T>(res);
                     }
+                    else
+                    {
+                        var reason = response.ReasonPhrase;
+                        var rcontent = response.Content;
+                    }
                     return item.ID;
                 }
             }
@@ -147,12 +194,27 @@ namespace heres
             }
         }
 
-        public async Task<int> DeleteItem<T>(long id) where T : ItemBase, new()
+        public async Task<int> DeleteItem<T>(T item) where T : IID, new()
         {
-            return database.Delete<T>(id);
+            // POST https://here01-1362.appspot.com/_ah/api/meeting/v1/meetings
+            // POST https://here01-1362.appspot.com/_ah/api/person/v1/persons
+            // POST https://here01-1362.appspot.com/_ah/api/person/v1/persons
+
+            var uri = new Uri(string.Format(uriStrId, typeof(T).Name.ToLower(), item.ID));
+            var response = await client.DeleteAsync(uri);
+            if (response.IsSuccessStatusCode)
+            {
+                var res = await response.Content.ReadAsStringAsync();
+            }
+            else
+            {
+                var reason = response.ReasonPhrase;
+                var rcontent = response.Content;
+            }
+            return database.Delete<T>(item.ID);
         }
 
-        public async Task<int> DeleteItem<T>(T item) where T : ItemBase, new()
+        public int DeleteDBItem<T>(T item) where T : IID,  new()
         {
             return database.Delete<T>(item.ID);
         }
