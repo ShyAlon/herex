@@ -7,8 +7,6 @@ namespace heres.poco
 {
     public class Role : ItemBase
     {
-        public string Name { get; set; }
-
         public override string ToString()
         {
             return Name;
@@ -17,6 +15,10 @@ namespace heres.poco
         /// <summary>
         /// The importance of the role - 0 means negligable and ushort.Max means critical
         /// </summary>
-        public ushort Importance { get; set; }
+        [Newtonsoft.Json.JsonPropertyAttribute("importance")]
+        public virtual int Importance { get; set; }
+
+        [Newtonsoft.Json.JsonPropertyAttribute("name")]
+        public virtual string Name { get; set; }
     }
 }

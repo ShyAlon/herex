@@ -41,7 +41,7 @@ class RoleMsg(messages.Message):
     id = messages.IntegerField(1)
     name = messages.StringField(2)
     importance = messages.IntegerField(3)
-    person = messages.IntegerField(4)
+    parentId = messages.IntegerField(4) # the meeting
 
 class RolesCollection(messages.Message):
     items = messages.MessageField(RoleMsg, 1, repeated=True)
@@ -193,7 +193,7 @@ class RoleApi(remote.Service):
         # meetings = Meeting.query().fetch()
         res = RolesCollection()
         for role in roles:
-            msg = RoleMsg(name=person.name, id=person.key.id(), importance=role.importance, person=request.id)
+            msg = RoleMsg(name=role.name, id=role.key.id(), importance=role.importance, parentId=role.parentId)
             res.items.append(msg)
         return res
 
@@ -208,8 +208,8 @@ class RoleApi(remote.Service):
         http_method='POST',
         name='roles.create')
     def create_meeting(self, request):
-        mm = Role(name=request.name, importance=request.importance, parentId=request.person);
-        res = RoleMsg(id=mm.put().id(), name=request.name, importance=request.importance, person=request.person)
+        mm = Role(name=request.name, importance=request.importance, parentId=request.parentId);
+        res = RoleMsg(id=mm.put().id(), name=request.name, importance=request.importance, parentId=role.parentId)
         return res
 
     @endpoints.method(GET_RESOURCE,

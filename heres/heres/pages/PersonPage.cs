@@ -1,15 +1,9 @@
 ﻿using heres.poco;
 using System;
-using System.Linq;
 using System.Collections.Generic;
-using System.Text;
 using System.Threading.Tasks;
 using Xamarin.Forms;
-using System.Threading;
-using heres.components;
-using System.Reflection;
 using System.Collections.ObjectModel;
-using Here011362AppspotCom.Apis.Role.v1.Data;
 
 namespace heres.pages
 {
@@ -55,13 +49,10 @@ namespace heres.pages
             try
             {
                 person = _person;
-
-                ReadRoles();
                 CreateContent();
 
                 RefreshList += (s, e) =>
                 {
-                    ReadRoles();
                     CreateContent();
                 };
             }
@@ -71,51 +62,51 @@ namespace heres.pages
             }
         }
 
-        private async void ReadRoles()
-        {
-            var additional = await GetSavedRoles();
-            person.Roles = new ObservableCollection<Role>(additional);
-        }
 
         private async void CreateContent()
         {
-            BindingContext = person;
-            Title = person.Name;
-            var AddRole = new Button
+            try
             {
-                Text = "Add Role"
-            };
-            AddRole.Clicked += async (s, e) =>
-            {
-                if (!string.IsNullOrWhiteSpace(newRole.Text))
+                person.Roles = new ObservableCollection<Role>(await GetSavedRoles());
+                BindingContext = person;
+                Title = person.Name;
+                var AddRole = new Button
                 {
-                    var r = new Role
+                    Text = "Add Role"
+                };
+                AddRole.Clicked += async (s, e) =>
+                {
+                    if (!string.IsNullOrWhiteSpace(newRole.Text))
                     {
-                        Name = newRole.Text,
-                        ParentID = person.ID
-                    };
-                    var db = new Database();
-                    await db.SaveItem(r);
-                    person.Roles.Add(r);
-                    newRole.Text = string.Empty;
-                }
-            };
-            newRole = new Entry() { };
-            AddRole.SetBinding(Button.IsEnabledProperty, new Binding(@"HasRole"));
-            var listView = new ListView
-            {
-                Header = "Roles",
-                ItemsSource = person.Roles,
-                VerticalOptions = LayoutOptions.FillAndExpand,
-                HorizontalOptions = LayoutOptions.FillAndExpand,
-                ItemTemplate = dataTemplate,
-            };
+                        var r = new Role
+                        {
+                            Name = newRole.Text,
+                            ParentID = person.ID,
+                            Importance = 1
+                        };
+                        var db = new Database();
+                        await db.SaveItem(r);
+                        person.Roles.Add(r);
+                        newRole.Text = string.Empty;
+                        PersonPage.RefreshList(s, e);
+                    }
+                };
+                newRole = new Entry() { };
+                AddRole.SetBinding(Button.IsEnabledProperty, new Binding(@"HasRole"));
+                var listView = new ListView
+                {
+                    Header = "Roles",
+                    ItemsSource = person.Roles,
+                    VerticalOptions = LayoutOptions.FillAndExpand,
+                    HorizontalOptions = LayoutOptions.FillAndExpand,
+                    ItemTemplate = dataTemplate,
+                };
 
-            // listView.ItemTapped += ParticipantTapped;
+                // listView.ItemTapped += ParticipantTapped;
 
-            Content = new StackLayout
-            {
-                Children =
+                Content = new StackLayout
+                {
+                    Children =
                     {
                         new StackLayout { Orientation = StackOrientation.Vertical,
                             Children =
@@ -132,16 +123,31 @@ namespace heres.pages
                             Content = listView,
                         }
                     }
-            };
+                };
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                throw;
+            }
+            
         }
 
         public bool HasRole() => !string.IsNullOrWhiteSpace(newRole.Text);
 
         private async Task<IEnumerable<Role>> GetSavedRoles()
         {
-            var db = new Database();
-            var roles = await db.GetItems<Role>(person.ID);
-            return roles.items;
+            try
+            {
+                var db = new Database();
+                var roles = await db.GetItems<Role>(person.ID);
+                return roles.items == null ? new List<Role>() : roles.items;
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine(ex);
+                throw;
+            }
         }
     }
 }

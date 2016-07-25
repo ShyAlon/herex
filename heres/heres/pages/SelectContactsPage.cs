@@ -2,12 +2,7 @@
 using System;
 using System.Linq;
 using System.Collections.Generic;
-using System.Text;
-using System.Threading.Tasks;
 using Xamarin.Forms;
-using System.Threading;
-using heres.components;
-using System.Reflection;
 using System.Collections.ObjectModel;
 
 namespace heres.pages
