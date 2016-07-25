@@ -9,6 +9,7 @@ using System.Net.Http;
 using Newtonsoft.Json;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using System.Security.Cryptography;
 
 namespace heres
 {
@@ -36,6 +37,7 @@ namespace heres
         const string API_Access_Key = "AIzaSyBBkdUYzIxX9uiYpZv4un8lgq-1CyH6Vc0";
         private const string uriStrId = @"https://here01-1362.appspot.com/_ah/api/{0}/v2/{0}s/{1}";
         private const string uriStr = @"https://here01-1362.appspot.com/_ah/api/{0}/v2/{0}s";
+        private const string uriDelete = @"https://here01-1362.appspot.com/_ah/api/{0}/v2/{0}s/{1}/{2}/{3}";
 
         /// <summary>
         /// Verify the local tables exist
@@ -194,13 +196,11 @@ namespace heres
             }
         }
 
-        public async Task<int> DeleteItem<T>(T item) where T : IID, new()
+        public async Task<int> DeleteItem<T>(T item, string email = null, string token = null) where T : IID, new()
         {
-            // POST https://here01-1362.appspot.com/_ah/api/meeting/v1/meetings
-            // POST https://here01-1362.appspot.com/_ah/api/person/v1/persons
-            // POST https://here01-1362.appspot.com/_ah/api/person/v1/persons
-
-            var uri = new Uri(string.Format(uriStrId, typeof(T).Name.ToLower(), item.ID));
+            email = string.IsNullOrEmpty(email) ? PrimaryEmail() : email;
+            token = string.IsNullOrEmpty(token) ? CreateToken(email) : email;
+            var uri = new Uri(string.Format(uriDelete, typeof(T).Name.ToLower(), item.ID, Uri.EscapeDataString(email), token));
             var response = await client.DeleteAsync(uri);
             if (response.IsSuccessStatusCode)
             {
@@ -217,6 +217,37 @@ namespace heres
         public int DeleteDBItem<T>(T item) where T : IID,  new()
         {
             return database.Delete<T>(item.ID);
+        }
+
+        internal string PrimaryEmail()
+        {
+            var addresses = from s in GetDBItems<Settings>()
+                            where s.Key == Settings.email && !String.IsNullOrEmpty(s.Value)
+                            select s;
+            var min = addresses.Min(s => s.ID);
+            var primaryEmail = addresses.FirstOrDefault(s => s.ID == min).Value;
+            return primaryEmail;
+        }
+
+        private static string CalculateMD5Hash(string input)
+        {
+            var md5 = MD5.Create();
+            var inputBytes = Encoding.ASCII.GetBytes(input);
+            var hash = md5.ComputeHash(inputBytes);
+            var sb = new StringBuilder();
+            for (int i = 0; i < hash.Length; i++)
+            {
+                sb.Append(hash[i].ToString("X2"));
+            }
+            return sb.ToString();
+        }
+
+
+        private string CreateToken(string email)
+        {
+            var source = $"{GetSetting(Settings.pin)} I'm a clown {email}";
+            var hash = CalculateMD5Hash(source);
+            return hash;
         }
     }
 }

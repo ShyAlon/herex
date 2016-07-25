@@ -64,7 +64,7 @@ namespace heres.pages
                 IsGroupingEnabled = true,
                 GroupDisplayBinding = new Binding("Title"),
                 GroupShortNameBinding = new Binding("ShortName"),
-                // 5GroupHeaderTemplate = new DataTemplate(typeof(HeaderCell))
+                // GroupHeaderTemplate = new DataTemplate(typeof(HeaderCell))
         };
             Content = new ScrollView
             {

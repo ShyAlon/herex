@@ -229,11 +229,7 @@ namespace heres.pages
         private async void Tracking_OnChanged(object sender, ToggledEventArgs e)
         {
             var db = new Database();
-            var addresses = from s in db.GetDBItems<Settings>()
-                               where s.Key == Settings.email && !String.IsNullOrEmpty(s.Value)
-                               select s;
-            var min = addresses.Min(s => s.ID);
-            var primaryEmail = addresses.FirstOrDefault(s => s.ID == min).Value;
+            var primaryEmail = db.PrimaryEmail();
 
             if (e.Value)
             {

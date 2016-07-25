@@ -52,6 +52,11 @@ GET_RESOURCE = endpoints.ResourceContainer(
     # Accept one url parameter: and integer named 'id'
     id=messages.IntegerField(1, variant=messages.Variant.INT64))
 
+DELETE_RESOURCE = endpoints.ResourceContainer(
+    id=messages.IntegerField(1, variant=messages.Variant.INT64), 
+    person=messages.StringField(2),
+    token=messages.StringField(3))
+
 GET_BY_STRING = endpoints.ResourceContainer(
     # The request body should be empty.
     message_types.VoidMessage,
@@ -109,21 +114,31 @@ class MeetingApi(remote.Service):
         res = MeetingMsg(id=mm.put().id(), title=mm.title, startTime=mm.startTime)
         return res
 
-    @endpoints.method(GET_RESOURCE,
+    @endpoints.method(DELETE_RESOURCE,
             message_types.VoidMessage,
-            path='meetings/{id}',
+            path='meetings/{id}/{person}/{token}',
             http_method='DELETE',
             name='meetings.delete')
     def delete(self, request):
         try:
             meeting = Meeting.get_by_id(request.id)
-            persons = Person.query(Person.parentId==request.id).fetch()
-            for person in persons:
-                roles = Role.query(Role.parentId==person.key.id()).fetch()
-                for role in roles:
-                    role.key.delete()
-                person.key.delete()
-            meeting.key.delete()
+            if meeting.originator == request.person:
+                persons = Person.query(Person.parentId==request.id).fetch()
+                for person in persons:
+                    roles = Role.query(Role.parentId==person.key.id()).fetch()
+                    for role in roles:
+                        role.key.delete()
+                    person.key.delete()
+                meeting.key.delete()
+            else: # just remove the person from the meeting
+                persons = Person.query(Person.parentId==request.id).fetch()
+                for person in persons:
+                    if(person.email == request.person):
+                        roles = Role.query(Role.parentId==person.key.id()).fetch()
+                        for role in roles:
+                            role.key.delete()
+                        person.key.delete()
+
             return message_types.VoidMessage()
         except (IndexError, TypeError):
             raise endpoints.NotFoundException('Role %s not found.' % (request.id,))
