@@ -36,7 +36,7 @@ namespace heres.pages
             {
                 var p = (Role)BindingContext;
                 var db = new Database();
-                await db.DeleteItem(p);
+                await db.DeleteItem(p, db.PrimaryEmail);
                 PersonPage.RefreshList(sender, e);
             }
         }
@@ -85,7 +85,7 @@ namespace heres.pages
                             Importance = 1
                         };
                         var db = new Database();
-                        await db.SaveItem(r);
+                        await db.SaveItem(r, db.PrimaryEmail);
                         person.Roles.Add(r);
                         newRole.Text = string.Empty;
                         PersonPage.RefreshList(s, e);
@@ -140,8 +140,17 @@ namespace heres.pages
             try
             {
                 var db = new Database();
-                var roles = await db.GetItems<Role>(person.ID);
-                return roles.items == null ? new List<Role>() : roles.items;
+                var addresses = db.GetEmailAddresses();
+                var result = new List<Role>();
+                foreach (var address in addresses)
+                {
+                    var roles = await db.GetItems<Role>(person.ID, address);
+                    if (roles != null && roles.items != null)
+                    {
+                        result.AddRange(roles.items);
+                    }
+                }
+                return result;
             }
             catch (Exception ex)
             {

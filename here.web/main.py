@@ -1,4 +1,5 @@
 from meetingsApi import MeetingApi, PersonApi, RoleApi
+from adminApi import AdminApi
 from models import Meeting, Person, Role
 from google.appengine.ext import ndb
 import endpoints
@@ -50,4 +51,4 @@ app = webapp2.WSGIApplication([('/', MainHandler),
                                ('/events/.*', CronEventHandler), ],
                               debug=True)
 
-api = endpoints.api_server([MeetingApi, PersonApi, RoleApi])
+api = endpoints.api_server([MeetingApi, PersonApi, RoleApi, AdminApi])

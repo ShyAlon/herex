@@ -39,7 +39,7 @@ namespace heres.pages
             {
                 var p = (Person)BindingContext;
                 var db = new Database();
-                await db.DeleteItem(p);
+                await db.DeleteItem(p, db.PrimaryEmail);
                 EventPage.RefreshList(sender, e);
             }
         }
@@ -54,19 +54,19 @@ namespace heres.pages
                 dataTemplate.SetBinding(PersonCell.TextProperty, "Name");
                 this.meeting = _meeting;
 
-                ReadParticipants();
-                CreateContent();
-
-                RefreshList += (s, e) =>
-                {
-                    ReadParticipants();
-                    CreateContent();
-                };
+                RefreshListHandler(this, new EventArgs());
+                RefreshList += RefreshListHandler;
             }
             catch (Exception ex)
             {
                 Console.WriteLine(ex);
             }
+        }
+
+        private void RefreshListHandler(object sender, EventArgs e)
+        {
+            ReadParticipants();
+            CreateContent();
         }
 
         private async void ReadParticipants()
@@ -96,7 +96,7 @@ namespace heres.pages
             BindingContext = meeting;
             Title = meeting.Title;
             tracking = new SwitchCell { On = meeting.Tracked, Text = "Is Tracked" };
-            tracking.OnChanged += Tracking_OnChanged;
+            tracking.OnChanged += TrackingChangedAsync;
             var EditEvent = new Button() { Text = "Edit Event" };
             EditEvent.Clicked += OnEditEvent;
             var AddRecipiantEvent = new Button() { Text = "Add Recipiant" };
@@ -152,15 +152,19 @@ namespace heres.pages
             try
             {
                 var db = new Database();
-                var persons = await db.GetItems<Person>(meeting.ID);
+                var addresses = db.GetEmailAddresses();
+                var result = new List<Person>();
+                var persons = await db.GetItems<Person>(meeting.ID, db.PrimaryEmail);
                 if (persons != null && persons.items != null)
                 {
                     foreach (var item in persons.items)
                     {
                         item.Organic = false;
+                        result.Add(item);
                     }
+
                 }
-                return persons.items;
+                return result;
             }
             catch (Exception ex)
             {
@@ -218,40 +222,40 @@ namespace heres.pages
 
         protected override void OnDisappearing()
         {
+            RefreshList -= RefreshListHandler;
             var db = new Database();
             base.OnDisappearing();
             if (meeting.Tracked)
             {
-                db.SaveItem(meeting).ContinueWith((res) => meeting.ID = res.Result);
+                db.SaveItem(meeting, db.PrimaryEmail).ContinueWith((res) => meeting.ID = res.Result);
             }
         }
 
-        private async void Tracking_OnChanged(object sender, ToggledEventArgs e)
+        private async void TrackingChangedAsync(object sender, ToggledEventArgs e)
         {
             var db = new Database();
-            var primaryEmail = db.PrimaryEmail();
-
+            var primaryEmail = db.PrimaryEmail;
             if (e.Value)
             {
                 meeting.Originator = primaryEmail;
-                await db.SaveItem(meeting).ContinueWith(async (res) =>
+                meeting.ID = await db.SaveItem(meeting, db.PrimaryEmail);
+                var participant = new Person
                 {
-                    meeting.ID = res.Result;
-                    var participant = new Person
-                    {
-                        ParentID = meeting.ID,
-                        Name = db.GetSetting(Settings.name),
-                        IsOrganizer = 1,
-                        Email = primaryEmail,
-                    };
-                    participant.ID = await db.SaveItem(participant);
-                });
+                    ParentID = meeting.ID,
+                    Name = db.GetSetting(Settings.name),
+                    IsOrganizer = 1,
+                    Email = primaryEmail,
+                };
+                participant.ID = await db.SaveItem(participant, db.PrimaryEmail);
             }
             else
             {
-                await db.DeleteItem(meeting);
+                await db.DeleteItem(meeting, db.PrimaryEmail);
+                meeting.ID = 0;
+                meeting.Participants = null;
+                await Navigation.PopAsync();
             }
-            meeting.Tracked = e.Value;
+            RefreshList?.Invoke(sender, e);
         }
     }
 }

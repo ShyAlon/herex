@@ -54,7 +54,7 @@ namespace heres.poco
             }
         }
         [Ignore]
-        public bool Tracked { get; set; }
+        public bool Tracked { get { return ID > 0; } }
 
         [Ignore]
         public ICollection<Person> Participants {get;set;}

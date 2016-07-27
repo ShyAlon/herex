@@ -5,6 +5,28 @@ using System.Text;
 
 namespace heres.poco
 {
+
+    public class User : Google.Apis.Requests.IDirectResponseSchema, IID
+    {
+        /// <summary>
+        /// User email is used as the id
+        /// </summary>
+        [PrimaryKey]
+        [Newtonsoft.Json.JsonPropertyAttribute("id")]
+        public string Email { get; set; }
+
+        public virtual string ETag { get; set; }
+
+        [Newtonsoft.Json.JsonPropertyAttribute("name")]
+        public string Name { get; set; }
+
+        [Newtonsoft.Json.JsonPropertyAttribute("token")]
+        public virtual string Token { get; set; }
+
+        [Newtonsoft.Json.JsonIgnore]
+        public long ID { get; set; }
+    }
+
     public class Person : ItemBase
     {
         [Newtonsoft.Json.JsonIgnore]

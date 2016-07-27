@@ -57,7 +57,7 @@ namespace heres.pages
                 p.ParentID = meeting.ID;
                 meeting.Participants.Add(p);
                 var db = new Database();
-                var id = await db.SaveItem(p);
+                var id = await db.SaveItem(p, db.PrimaryEmail);
                 await Navigation.PopAsync();
             }
             catch (Exception ex)

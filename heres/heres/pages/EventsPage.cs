@@ -11,7 +11,7 @@ namespace heres.pages
     public class EventsPage : ContentPage
     {
         private ListView list;
-        private Dictionary<long, Meeting> meetings;
+        private Dictionary<string, Meeting> meetings;
         private PageTypeGroup tracked;
         private PageTypeGroup external;
         private PageTypeGroup unTracked;
@@ -94,9 +94,7 @@ namespace heres.pages
 
         protected override void OnAppearing()
         {
-            email = new HashSet<string>(from s in new Database().GetDBItems<Settings>()
-                                        where s.Key == Settings.email
-                                        select s.Value);
+            email = new HashSet<string>(new Database().GetEmailAddresses());
 
             if (!ValidEmail(email))
             {
@@ -110,31 +108,28 @@ namespace heres.pages
                      var dialer = DependencyService.Get<ICalendar>();
                      var res = dialer.GetEvents();
                      // End time serves to remove all day events
+                     var db = new Database();
+                     foreach (var item in res)
+                     {
+                         item.Originator = item.Originator ?? db.PrimaryEmail;
+                         item.ID = 0;
+                     }
                      meetings = (from e in res
                                  where e.StartTime > DateTime.Now && e.EndTime > DateTime.Now
                                  orderby e.StartTime ascending
-                                 select e).ToDictionary(x => x.InternalID);
-                     var db = new Database();
+                                 select e).ToDictionary(x => $"{x.InternalID}{x.Originator}");
+                     
+                     
                      foreach (var address in email)
                      {
-                         var temp = await db.GetItems<Meeting>(address);
-                         var persisted = (temp == null || temp.items == null) ? new Dictionary<long, Meeting>() : CreateDictionary(temp);
+                         var temp = await db.GetItems<Meeting>(0, address);
+                         var persisted = (temp == null || temp.items == null) ? new Dictionary<string, Meeting>() : CreateDictionary(temp);
+                         var local = meetings.Values.ToList();
 
                          foreach (var item in persisted.Values)
                          {
-                             var f = (from a in email
-                                      where a.Equals(item.Originator)
-                                      select a).FirstOrDefault();
-                             if(f != null) // This is the originator
-                             {
-                                 meetings[item.InternalID] = item;
-                                 meetings[item.InternalID].Tracked = true;
-                             }
-                             else // it is external
-                             {
-                                 meetings[item.ID] = item;
-                                 meetings[item.ID].Tracked = true;
-                             }
+                             // override with persisted data
+                             meetings[$"{item.InternalID}{item.Originator}"] = item;
                          }
                      }
                      Device.BeginInvokeOnMainThread(() =>
@@ -155,12 +150,12 @@ namespace heres.pages
             }
         }
 
-        private Dictionary<long, Meeting> CreateDictionary(CollectionOf<Meeting> temp)
+        private Dictionary<string, Meeting> CreateDictionary(CollectionOf<Meeting> temp)
         {
-            var res = new Dictionary<long, Meeting>();
+            var res = new Dictionary<string, Meeting>();
             foreach (var item in temp.items)
             {
-                res[item.InternalID] = item;
+                res[$"{item.InternalID}{item.Originator}"] = item;
             }
             return res;
         }

@@ -2,6 +2,10 @@ from google.appengine.ext import endpoints
 from google.appengine.ext import ndb
 from users import users
 
+class User(ndb.Model):
+    token = ndb.StringProperty()
+    name = ndb.StringProperty()
+
 class ItemBase(ndb.Model):
     localId = ndb.IntegerProperty()
     status = ndb.IntegerProperty()

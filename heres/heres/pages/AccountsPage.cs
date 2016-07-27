@@ -35,11 +35,18 @@ namespace heres.pages
                 ContextActions.Add(deleteAction);
             }
 
-            private void Delete(object sender, EventArgs e)
+            private async void Delete(object sender, EventArgs e)
             {
                 var p = (Settings)BindingContext;
                 var db = new Database();
-                var id = db.DeleteDBItem(p);
+                var user = new User
+                {
+                    Email = Text,
+                    Name = db.GetSetting(Settings.name),
+                    Token = db.CreateToken(Text)
+                };
+                var id = await db.DeleteItem(user, Text, null, Text);
+                id = db.DeleteDBItem(p);
                 AccountsPage.RefreshList(sender, e);
             }
         }
@@ -71,6 +78,32 @@ namespace heres.pages
             OnPropertyChanged(nameof(Warn));
         }
 
+        private async void AddEMailClicked(object sender, EventArgs e)
+        {
+            if (!string.IsNullOrWhiteSpace(newEmail.Text))
+            {
+                var db = new Database();
+                var r = new Settings
+                {
+                    Key = Settings.email,
+                    Value = newEmail.Text
+                };
+
+                db.SaveDBItem(r);
+                settings.Add(r);
+                // Add the account
+                var user = new User
+                {
+                    Email = newEmail.Text,
+                    Name = db.GetSetting(Settings.name),
+                    Token = db.CreateToken(newEmail.Text)
+                };
+                var id = await db.SaveItem(user, newEmail.Text);
+                newEmail.Text = string.Empty;
+                OnPropertyChanged(nameof(Warn));
+            }
+        }
+
         private void CreateContent()
         {
             var db = new Database();
@@ -78,33 +111,18 @@ namespace heres.pages
             {
                 Text = "Add Email Address"
             };
-            AddEmail.Clicked += (s, e) =>
-            {
-                if (!string.IsNullOrWhiteSpace(newEmail.Text))
-                {
-                    var r = new Settings
-                    {
-                        Key = Settings.email,
-                        Value = newEmail.Text
-                    };
-
-                    db.SaveDBItem(r);
-                    settings.Add(r);
-                    newEmail.Text = string.Empty;
-                    OnPropertyChanged(nameof(Warn));
-                }
-            };
+            AddEmail.Clicked += AddEMailClicked;
 
             newEmail = new Entry() { };
             var val = db.GetSetting(Settings.pin);
-            int _limit = 12;    //Enter text limit
+            var _limit = 12;    //Enter text limit
             var pin = new Entry()
             {
                 Text = val, IsPassword = true
             };
             pin.TextChanged += (sender, args) =>
             {
-                string _text = pin.Text;      //Get Current Text
+                var _text = pin.Text;      //Get Current Text
                 if (_text.Length > _limit)       //If it is more than your character restriction
                 {
                     _text = _text.Remove(_text.Length - 1);  // Remove Last character
@@ -173,7 +191,14 @@ namespace heres.pages
             };
         }
 
-        public bool HasEmail() => !string.IsNullOrWhiteSpace(newEmail.Text);
+        public bool HasEmail
+        {
+            get
+            {
+                return !string.IsNullOrWhiteSpace(newEmail.Text);
+            }
+        }
+
 
         public bool Warn
         {
@@ -181,6 +206,13 @@ namespace heres.pages
             {
                 return settings == null || settings.Count == 0;
             }
+        }
+
+        protected override void OnDisappearing()
+        {
+            var db = new Database();
+
+            base.OnDisappearing();
         }
     }
 }

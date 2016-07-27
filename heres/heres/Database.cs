@@ -35,9 +35,8 @@ namespace heres
         private readonly SQLiteConnection database;
         private readonly HttpClient client;
         const string API_Access_Key = "AIzaSyBBkdUYzIxX9uiYpZv4un8lgq-1CyH6Vc0";
-        private const string uriStrId = @"https://here01-1362.appspot.com/_ah/api/{0}/v2/{0}s/{1}";
-        private const string uriStr = @"https://here01-1362.appspot.com/_ah/api/{0}/v2/{0}s";
-        private const string uriDelete = @"https://here01-1362.appspot.com/_ah/api/{0}/v2/{0}s/{1}/{2}/{3}";
+        private const string uriStr = @"https://here01-1362.appspot.com/_ah/api/{0}/v2/{0}s/{1}/{2}";
+        private const string uriItem = @"https://here01-1362.appspot.com/_ah/api/{0}/v2/{0}s/{1}/{2}/{3}";
 
         /// <summary>
         /// Verify the local tables exist
@@ -51,6 +50,7 @@ namespace heres
             database.CreateTable<Role>();
             // database.DropTable<Settings>();
             database.CreateTable<Settings>();
+            database.CreateTable<User>();
 
             client = new HttpClient
             {
@@ -88,12 +88,13 @@ namespace heres
             return database.Table<T>().ToList();
         }
 
-        public async Task<CollectionOf<T>> GetItems<T>(object parent) where T : ItemBase, new()
+        public async Task<CollectionOf<T>> GetItems<T>(object parent, string email, string token = null) where T : ItemBase, new()
         {
             try
             {
                 CollectionOf<T> items = null;
-                var uri = new Uri(string.Format(uriStrId, typeof(T).Name.ToLower(), parent == null ? string.Empty : Uri.EscapeDataString(parent.ToString())));
+                token = token ?? CreateToken(email);
+                var uri = new Uri(string.Format(uriItem, typeof(T).Name.ToLower(), parent == null ? string.Empty : Uri.EscapeDataString(parent.ToString()), Uri.EscapeDataString(email), token));
                 var response = await client.GetAsync(uri);
                 if (response.IsSuccessStatusCode)
                 {
@@ -116,7 +117,7 @@ namespace heres
             }
         }
 
-        public void SaveDBItem<T>(T item) where T : IID,  new()
+        public void SaveDBItem<T>(T item) where T : IID, new()
         {
             try
             {
@@ -143,7 +144,7 @@ namespace heres
             }
         }
 
-        public async Task<long> SaveItem<T>(T item) where T : ItemBase, new()
+        public async Task<long> SaveItem<T>(T item, string email, string token = null) where T : IID, new()
         {
             try
             {
@@ -157,11 +158,8 @@ namespace heres
                 }
                 else
                 {
-                    // POST https://here01-1362.appspot.com/_ah/api/meeting/v1/meetings
-                    // POST https://here01-1362.appspot.com/_ah/api/person/v1/persons
-                    // POST https://here01-1362.appspot.com/_ah/api/person/v1/persons
-
-                    var uri = new Uri(string.Format(uriStr, typeof(T).Name.ToLower()));
+                    token = token ?? CreateToken(email);
+                    var uri = new Uri(string.Format(uriStr, typeof(T).Name.ToLower(), Uri.EscapeDataString(email), token));
                     var json = JsonConvert.SerializeObject(item);
                     var content = new StringContent(json, Encoding.UTF8, "application/json");
 
@@ -178,7 +176,11 @@ namespace heres
                     if (response.IsSuccessStatusCode)
                     {
                         var res = await response.Content.ReadAsStringAsync();
-                        item = JsonConvert.DeserializeObject<T>(res);
+                        if (string.IsNullOrEmpty(res))
+                        {
+                            return 0;
+                        }
+                        item = res == null ? new T() : JsonConvert.DeserializeObject<T>(res);
                     }
                     else
                     {
@@ -196,11 +198,27 @@ namespace heres
             }
         }
 
-        public async Task<int> DeleteItem<T>(T item, string email = null, string token = null) where T : IID, new()
+        internal IList<string> GetEmailAddresses()
         {
-            email = string.IsNullOrEmpty(email) ? PrimaryEmail() : email;
+            var addresses = (from s in GetDBItems<Settings>()
+                             where s.Key == Settings.email && !String.IsNullOrEmpty(s.Value)
+                             select s.Value).ToList();
+            return addresses;
+        }
+
+        public async Task<int> DeleteItem<T>(T item, string email, string token = null, object ID = null) where T : IID, new()
+        {
+            email = string.IsNullOrEmpty(email) ? PrimaryEmail : email;
             token = string.IsNullOrEmpty(token) ? CreateToken(email) : email;
-            var uri = new Uri(string.Format(uriDelete, typeof(T).Name.ToLower(), item.ID, Uri.EscapeDataString(email), token));
+            var uri = ID == null ? new Uri(string.Format(uriItem, typeof(T).Name.ToLower(),
+                                                Uri.EscapeDataString(item.ID.ToString()),
+                                                Uri.EscapeDataString(email),
+                                                token))
+                                                :
+                                   new Uri(string.Format(uriStr, typeof(T).Name.ToLower(),
+                                                Uri.EscapeDataString(ID.ToString()),
+                                                token));
+
             var response = await client.DeleteAsync(uri);
             if (response.IsSuccessStatusCode)
             {
@@ -214,19 +232,24 @@ namespace heres
             return database.Delete<T>(item.ID);
         }
 
-        public int DeleteDBItem<T>(T item) where T : IID,  new()
+        public int DeleteDBItem<T>(T item) where T : IID, new()
         {
             return database.Delete<T>(item.ID);
         }
 
-        internal string PrimaryEmail()
+        internal string PrimaryEmail
         {
-            var addresses = from s in GetDBItems<Settings>()
-                            where s.Key == Settings.email && !String.IsNullOrEmpty(s.Value)
-                            select s;
-            var min = addresses.Min(s => s.ID);
-            var primaryEmail = addresses.FirstOrDefault(s => s.ID == min).Value;
-            return primaryEmail;
+            get
+            {
+                {
+                    var addresses = (from s in GetDBItems<Settings>()
+                                     where s.Key == Settings.email && !String.IsNullOrEmpty(s.Value)
+                                     select s).ToList();
+                    var min = addresses.Min(s => s.ID);
+                    var primaryEmail = addresses.FirstOrDefault(s => s.ID == min).Value;
+                    return primaryEmail;
+                }
+            }
         }
 
         private static string CalculateMD5Hash(string input)
@@ -243,7 +266,7 @@ namespace heres
         }
 
 
-        private string CreateToken(string email)
+        public string CreateToken(string email)
         {
             var source = $"{GetSetting(Settings.pin)} I'm a clown {email}";
             var hash = CalculateMD5Hash(source);

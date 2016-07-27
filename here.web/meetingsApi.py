@@ -2,7 +2,7 @@ import endpoints
 from protorpc import message_types
 from protorpc import messages
 from protorpc import remote
-from models import Meeting, Person, Role
+from models import Meeting, Person, Role, User
 import datetime
 
 def meeting2Msg(meeting):
@@ -18,12 +18,29 @@ def toMeeting(msg):
     mm = Meeting(title=msg.title, startTime=msg.startTime, internalId=msg.internalId, originator=msg.originator);
     return mm
 
+def authorise(id, token):
+    user = User.get_by_id(id)
+    if not user:
+        message = 'No user with the id "%s" exists.' % id
+        raise endpoints.NotFoundException(message)
+    if token != user.token:
+        message = 'Invalid credentials for "%s" exists.' % id
+        raise endpoints.UnauthorizedException(message)
+
 class MeetingMsg(messages.Message):
     id = messages.IntegerField(1)
     title = messages.StringField(2)
     startTime = message_types.DateTimeField(3)
     internalId = messages.IntegerField(4) # the local id at the originator's device
     originator = messages.StringField(5)
+    person = messages.StringField(6)
+    token = messages.StringField(7)
+
+MEETING_SECURE_RESOURCE = endpoints.ResourceContainer(
+    MeetingMsg, 
+    id = messages.IntegerField(2),
+    person=messages.StringField(3),
+    token=messages.StringField(4))
 
 class MeetingsCollection(messages.Message):
     items = messages.MessageField(MeetingMsg, 1, repeated=True)
@@ -34,6 +51,12 @@ class PersonMsg(messages.Message):
     email = messages.StringField(3)
     parentId = messages.IntegerField(4) # the meeting
 
+PERSON_SECURE_RESOURCE = endpoints.ResourceContainer(
+    PersonMsg, 
+    id = messages.IntegerField(2),
+    person=messages.StringField(3),
+    token=messages.StringField(4))
+
 class PersonsCollection(messages.Message):
     items = messages.MessageField(PersonMsg, 1, repeated=True)
 
@@ -42,6 +65,12 @@ class RoleMsg(messages.Message):
     name = messages.StringField(2)
     importance = messages.IntegerField(3)
     parentId = messages.IntegerField(4) # the meeting
+
+ROLE_SECURE_RESOURCE = endpoints.ResourceContainer(
+    RoleMsg, 
+    id = messages.IntegerField(2),
+    person=messages.StringField(3),
+    token=messages.StringField(4))
 
 class RolesCollection(messages.Message):
     items = messages.MessageField(RoleMsg, 1, repeated=True)
@@ -52,7 +81,7 @@ GET_RESOURCE = endpoints.ResourceContainer(
     # Accept one url parameter: and integer named 'id'
     id=messages.IntegerField(1, variant=messages.Variant.INT64))
 
-DELETE_RESOURCE = endpoints.ResourceContainer(
+SECURE_RESOURCE = endpoints.ResourceContainer(
     id=messages.IntegerField(1, variant=messages.Variant.INT64), 
     person=messages.StringField(2),
     token=messages.StringField(3))
@@ -67,14 +96,15 @@ GET_BY_STRING = endpoints.ResourceContainer(
 class MeetingApi(remote.Service):
     @endpoints.method(
         # This method does not take a request message.
-        GET_BY_STRING,
+        SECURE_RESOURCE,
         # This method returns a GreetingCollection message.
         MeetingsCollection,
-        path='meetings/{userId}',
+        path='meetings/{id}/{person}/{token}',
         http_method='GET',
         name='meetings.list')
     def list_meetings(self, request):
-        meetings = Meeting.get_meetings(request.userId, 'token')
+        authorise(request.person, request.token)
+        meetings = Meeting.get_meetings(request.person, request.token)
         # meetings = Meeting.query().fetch()
         res = MeetingsCollection()
         for meeting in meetings:
@@ -82,27 +112,25 @@ class MeetingApi(remote.Service):
         return res
 
     @endpoints.method(
-        # This method accepts a request body containing a Greeting message
-        # and a URL parameter specifying how many times to multiply the
-        # message.
+        MEETING_SECURE_RESOURCE,
         MeetingMsg,
-        # This method returns a Greeting message.
-        MeetingMsg,
-        path='meetings',
+        path='meetings/{person}/{token}',
         http_method='POST',
         name='meetings.create')
     def create_meeting(self, request):
+        authorise(request.person, request.token)
         mm = toMeeting(request) # Meeting(title=request.title, startTime=request.startTime);
         mm.put();
         res = meeting2Msg(mm)
         return res
 
-    @endpoints.method(  MeetingMsg,
+    @endpoints.method(  MEETING_SECURE_RESOURCE,
                         MeetingMsg,
                         http_method='PUT',
-                        path='meetings/{id}',
+                        path='meetings/{id}/{person}/{token}',
                         name='meetings.update')
     def update(self, request):
+        authorise(request.person, request.token)
         mm = Meeting.get_by_id(request.id)
         if not mm:
             message = 'No meeting with the id "%s" exists.' % request.id
@@ -114,12 +142,13 @@ class MeetingApi(remote.Service):
         res = MeetingMsg(id=mm.put().id(), title=mm.title, startTime=mm.startTime)
         return res
 
-    @endpoints.method(DELETE_RESOURCE,
+    @endpoints.method(SECURE_RESOURCE,
             message_types.VoidMessage,
             path='meetings/{id}/{person}/{token}',
             http_method='DELETE',
             name='meetings.delete')
     def delete(self, request):
+        authorise(request.person, request.token)
         try:
             meeting = Meeting.get_by_id(request.id)
             if meeting.originator == request.person:
@@ -146,14 +175,14 @@ class MeetingApi(remote.Service):
 @endpoints.api(name='person', version='v2')
 class PersonApi(remote.Service):
     @endpoints.method(
-        # This method does not take a request message.
-        GET_RESOURCE,
+        SECURE_RESOURCE,
         # This method returns a GreetingCollection message.
         PersonsCollection,
-        path='persons/{id}',
+        path='persons/{id}/{person}/{token}',
         http_method='GET',
         name='persons.list')
     def list_persons(self, request):
+        authorise(request.person, request.token)
         persons = Person.query(Person.parentId==request.id).fetch()
         # meetings = Meeting.query().fetch()
         res = PersonsCollection()
@@ -166,23 +195,25 @@ class PersonApi(remote.Service):
         # This method accepts a request body containing a Greeting message
         # and a URL parameter specifying how many times to multiply the
         # message.
-        PersonMsg,
+        PERSON_SECURE_RESOURCE,
         # This method returns a Greeting message.
         PersonMsg,
-        path='persons',
+        path='persons/{person}/{token}',
         http_method='POST',
         name='persons.create')
     def create_person(self, request):
+        authorise(request.person, request.token)
         mm = Person(name=request.name, email=request.email, parentId=request.parentId);
         res = PersonMsg(id=mm.put().id(), name=request.name, email=request.email, parentId=request.parentId)
         return res
 
-    @endpoints.method(GET_RESOURCE,
+    @endpoints.method(SECURE_RESOURCE,
                     message_types.VoidMessage,
-                    path='persons/{id}',
+                    path='persons/{id}/{person}/{token}',
                     http_method='DELETE',
                     name='persons.delete')
     def delete(self, request):
+        authorise(request.person, request.token)
         try:
             person = Person.get_by_id(request.id)
             roles = Role.query(Role.parentId==request.id).fetch()
@@ -204,6 +235,7 @@ class RoleApi(remote.Service):
         http_method='GET',
         name='roles.list')
     def list_roles(self, request):
+        authorise(request.person, request.token)
         roles = Role.query(Role.parentId==request.id).fetch()
         # meetings = Meeting.query().fetch()
         res = RolesCollection()
@@ -216,23 +248,25 @@ class RoleApi(remote.Service):
         # This method accepts a request body containing a Greeting message
         # and a URL parameter specifying how many times to multiply the
         # message.
-        RoleMsg,
+        ROLE_SECURE_RESOURCE,
         # This method returns a Greeting messagee
         RoleMsg,
         path='roles',
         http_method='POST',
         name='roles.create')
     def create_meeting(self, request):
+        authorise(request.person, request.token)
         mm = Role(name=request.name, importance=request.importance, parentId=request.parentId);
         res = RoleMsg(id=mm.put().id(), name=request.name, importance=request.importance, parentId=role.parentId)
         return res
 
-    @endpoints.method(GET_RESOURCE,
+    @endpoints.method(SECURE_RESOURCE,
                       message_types.VoidMessage,
-                      path='roles/{id}',
+                      path='roles/{id}/{person}/{token}',
                       http_method='DELETE',
                       name='roles.delete')
     def delete(self, request):
+        authorise(request.person, request.token)
         try:
             role = Role.get_by_id(request.id)
             role.key.delete();
