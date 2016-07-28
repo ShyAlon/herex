@@ -228,10 +228,10 @@ class PersonApi(remote.Service):
 class RoleApi(remote.Service):
     @endpoints.method(
         # This method does not take a request message.
-        GET_RESOURCE,
+        SECURE_RESOURCE,
         # This method returns a GreetingCollection message.
         RolesCollection,
-        path='roles/{id}',
+        path='roles/{id}/{person}/{token}', #{id}/{person}/{token}
         http_method='GET',
         name='roles.list')
     def list_roles(self, request):
@@ -245,19 +245,16 @@ class RoleApi(remote.Service):
         return res
 
     @endpoints.method(
-        # This method accepts a request body containing a Greeting message
-        # and a URL parameter specifying how many times to multiply the
-        # message.
         ROLE_SECURE_RESOURCE,
         # This method returns a Greeting messagee
         RoleMsg,
-        path='roles',
+        path='roles/{person}/{token}',
         http_method='POST',
         name='roles.create')
     def create_meeting(self, request):
         authorise(request.person, request.token)
         mm = Role(name=request.name, importance=request.importance, parentId=request.parentId);
-        res = RoleMsg(id=mm.put().id(), name=request.name, importance=request.importance, parentId=role.parentId)
+        res = RoleMsg(id=mm.put().id(), name=request.name, importance=request.importance, parentId=mm.parentId)
         return res
 
     @endpoints.method(SECURE_RESOURCE,

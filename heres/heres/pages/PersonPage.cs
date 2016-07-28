@@ -140,15 +140,11 @@ namespace heres.pages
             try
             {
                 var db = new Database();
-                var addresses = db.GetEmailAddresses();
-                var result = new List<Role>();
-                foreach (var address in addresses)
+                var result = new List<Role>();      
+                var roles = await db.GetItems<Role>(person.ID, db.PrimaryEmail);
+                if (roles != null && roles.items != null)
                 {
-                    var roles = await db.GetItems<Role>(person.ID, address);
-                    if (roles != null && roles.items != null)
-                    {
-                        result.AddRange(roles.items);
-                    }
+                    result.AddRange(roles.items);
                 }
                 return result;
             }
