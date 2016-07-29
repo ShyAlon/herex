@@ -6,7 +6,6 @@ import endpoints
 import logging
 import webapp2
 import datetime
-from gcm import GCM
 
 EVENTS_PREFIX = "/events/"
 
@@ -49,13 +48,7 @@ class CronEventHandler(webapp2.RequestHandler):
     def processParticipant(self, person, meeting):
         logging.info('Processing {}'.format(person.name))
         note = Notification(meeting=meeting.key.id(), person=person.key.id())
-        note.put();
-
-        gcm = GCM(API_KEY, debug=True)
-        data = {'meeting': meeting.key.id(), 'person': person.key.id()}
-        topic = 'meeting' + str(meeting.key.id())
-        response = gcm.send_topic_message(topic=topic, data=data)
-        logging.info(response)
+        note.put()
 
 app = webapp2.WSGIApplication([('/', MainHandler),
                                ('/events/.*', CronEventHandler), ],
