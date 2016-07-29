@@ -1,6 +1,10 @@
 from google.appengine.ext import endpoints
 from google.appengine.ext import ndb
-from users import users
+
+class Notification(ndb.Model):
+    timestamp = ndb.DateTimeProperty(auto_now=True)
+    meeting = ndb.IntegerProperty()
+    person = ndb.IntegerProperty()
 
 class User(ndb.Model):
     token = ndb.StringProperty()
@@ -22,13 +26,12 @@ class Meeting(ItemBase):
     @classmethod
     def get_meetings(cls, email, token):
         # return cls.query(ancestor=parent_key).order( -cls.date_created)
-        if users.authenticate(email, token):
-            persons = Person.get_persons(email, token);
-            meetings = []
-            for person in persons:
-                meeting = cls.get_by_id(person.parentId)
-                meetings.append(meeting)
-            return meetings
+        persons = Person.get_persons(email, token);
+        meetings = []
+        for person in persons:
+            meeting = cls.get_by_id(person.parentId)
+            meetings.append(meeting)
+        return meetings
 
 class Person(ItemBase):
     """Model to store people related to a meeting as uploaded by users by 
@@ -39,9 +42,8 @@ class Person(ItemBase):
     @classmethod
     def get_persons(cls, email, token):
         # return cls.query(ancestor=parent_key).order( -cls.date_created)
-        if users.authenticate(email, token):
-            persons = cls.query(cls.email == email).fetch()
-            return persons
+        persons = cls.query(cls.email == email).fetch()
+        return persons
 
 class Role(ItemBase):
     """Model to store roles
