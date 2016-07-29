@@ -11,6 +11,21 @@ handlers:
 
 - url: /_ah/spi/.*
   script: main.api
+# Push
+- url: /push/.*
+  script: push.app
+
+- url: /admin/.*
+  script: admin.app
+  login: admin
+
+- url: /apns/.*
+  script: apnsmodule.app
+
+- url: /gcm/.*
+  script: gcmmodule.app
+
+# Push end
 
 - url: /events/.*
   script: main.app
