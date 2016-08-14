@@ -40,7 +40,7 @@ appconfig = None
 # - Make this more fail safe -- use Backends and a Task Queue or something so that we can guarantee delivery, and so it doesn't tie up the request when we are broadcasting to a very large number of devices
 # - Properly handle feedback from the APNS Feedback service
 
-def convertToGcmMessage(message):
+def convertToGcmMessage(self, message):
     gcmmessage = {}
     gcmmessage["data"] = {}
     
@@ -52,7 +52,7 @@ def convertToGcmMessage(message):
 
     return gcmmessage
 
-def convertToApnsMessage(message):
+def convertToApnsMessage(self, message):
     apnsmessage = {}
     apnsmessage["data"] = {}
     apnsmessage["sound"] = "default"
@@ -108,13 +108,12 @@ def sendSingleApnsMessage(self, message, token):
     sendMulticastApnsMessage(self, apns_reg_ids, message)
 
 
-def sendMulticastGcmMessage(gcm_reg_ids, gcmmessage):
+def sendMulticastGcmMessage(self, gcm_reg_ids, gcmmessage):
     appconfig = AppConfig.get_or_insert("config")
     gcm = GCM(appconfig.gcm_api_key)
-    logging.info('Message {} to {}'.format(gcmmessage, gcm_reg_ids))
+
     # JSON request
     response = gcm.json_request(registration_ids=gcm_reg_ids, data=gcmmessage)
-    logging.info(response)
     if 'errors' in response:
         for error, reg_ids in response['errors'].items():
             # Check for errors and act accordingly
@@ -136,11 +135,11 @@ def sendMulticastGcmMessage(gcm_reg_ids, gcmmessage):
             token.put()
 
 
-def sendSingleGcmMessage(message, token):
+def sendSingleGcmMessage(self, message, token):
     gcm_reg_ids=[token]
-    sendMulticastGcmMessage(gcm_reg_ids, message)
+    sendMulticastGcmMessage(self, gcm_reg_ids, message)
 
-def broadcastGcmMessage(message):
+def broadcastGcmMessage(self, message):
     appconfig = AppConfig.get_or_insert("config")
     gcmmessage = message
     
@@ -150,7 +149,7 @@ def broadcastGcmMessage(message):
     
     for token in q.iter():
         if x == appconfig.gcm_multicast_limit:
-            sendMulticastGcmMessage(gcm_reg_ids, gcmmessage)
+            sendMulticastGcmMessage(self, gcm_reg_ids, gcmmessage)
             gcm_reg_ids.clear()
             x = 0
         
@@ -158,7 +157,7 @@ def broadcastGcmMessage(message):
         x = x + 1
     
     if len(gcm_reg_ids) > 0:
-        sendMulticastGcmMessage(gcm_reg_ids, gcmmessage)
+        sendMulticastGcmMessage(self, gcm_reg_ids, gcmmessage)
 
 
 def broadcastApnsMessage(self, message):
@@ -187,33 +186,59 @@ def broadcastApnsMessage(self, message):
 
 
 #Sample POST Data -->  message={"request":{"data":{"custom": "json data"},"platforms": [1,2], "ios_message":"This is a test","ios_button_text":"yeah!","ios_badge": -1, "ios_sound": "soundfile", "android_collapse_key": "collapsekey"}}
-def BroadcastMessage(msg):
-    if 1 in msg['request']['platforms']:
-        #Send to Android devices using GCM
-        broadcastGcmMessage(self, convertToGcmMessage(self, msg))
+class BroadcastMessage(webapp2.RequestHandler):
+    def post(self):
+        msg = json.loads(self.request.get("message"))
+        if 1 in msg["request"]["platforms"]:
+            #Send to Android devices using GCM
+            broadcastGcmMessage(self, convertToGcmMessage(self, msg))
+    
+        if 2 in msg["request"]["platforms"]:
+            #Send to iOS devices using APNS
+            broadcastApnsMessage(self, convertToApnsMessage(self, msg))
 
-    if 2 in msg['request']['platforms']:
-        #Send to iOS devices using APNS
-        broadcastApnsMessage(self, convertToApnsMessage(self, msg))
+        #Return result
+        self.response.write("OK")
 
-def BroadcastMessageToTag(msg, tagid):
-    if 1 in msg['request']['platforms']:
-        q = GcmTag.query(GcmTag.tag == tagid)
-        for tag in q.iter():
-            logging.info('Found GCM tag {}'.format(tag))
-            sendSingleGcmMessage(convertToGcmMessage(msg), tag.token.get().gcm_token)
-
-    if 2 in msg['request']['platforms']:
-        #Send to iOS devices using APNS      
-        q = ApnsSandboxTag.query(ApnsSandboxTag.tag == tagid)
-        for tag in q.iter():
-            sendSingleApnsMessage(convertToApnsMessage(msg), tag.token.get().apns_token)
+class BroadcastMessageToTag(webapp2.RequestHandler):
+    def post(self):
+        msg = json.loads(self.request.get("message"))
+        if 1 in msg["request"]["platforms"]:
+            tagid = self.request.get("tagid")
+            
+            q = GcmTag.query(GcmTag.tag == tagid)
+            for tag in q.iter():
+                sendSingleGcmMessage(self, convertToGcmMessage(self, msg), tag.token.get().gcm_token)
+    
+        if 2 in msg["request"]["platforms"]:
+            #Send to iOS devices using APNS
+            tagid = self.request.get("tagid")
+            
+            q = ApnsSandboxTag.query(ApnsSandboxTag.tag == tagid)
+            for tag in q.iter():
+                sendSingleApnsMessage(self, convertToApnsMessage(self, msg), tag.token.get().apns_token)
+            
+        #Return result
+        self.response.write("OK")
 
 
 #Sample POST Data -->  platform=1&token=<device token string>&message={"request":{"data":{"custom": "json data"}, "ios_message":"This is a test","ios_button_text":"yeah!","ios_badge": -1, "ios_sound": "soundfile", "android_collapse_key": "collapsekey"}}
-def SendMessage(msg): 
-    #Send a single message to a device token
-    if msg.platform == "1": #Android
-        sendSingleGcmMessage(convertToGcmMessage(json.loads(msg.message)), msg.token)
-    elif msg.platform == "2": #iOS
-        sendSingleApnsMessage(convertToApnsMessage(json.loads(msg.message)), msg.token)
+class SendMessage(webapp2.RequestHandler):
+   def post(self):
+        platform = self.request.get("platform")
+        message = self.request.get("message")
+        token = self.request.get("token")
+        
+        #Send a single message to a device token
+        if platform == "1": #Android
+            sendSingleGcmMessage(convertToGcmMessage(self, json.loads(message)), token)
+        elif platform == "2": #iOS
+            sendSingleApnsMessage(convertToApnsMessage(self, json.loads(message)), token)
+                
+        self.response.write("OK")
+
+app = webapp2.WSGIApplication([
+    ('/push/tagbroadcast', BroadcastMessageToTag),
+    ('/push/broadcast', BroadcastMessage),
+    ('/push/send', SendMessage)
+], debug=True)

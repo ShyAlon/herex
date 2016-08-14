@@ -245,9 +245,13 @@ namespace heres
                     var addresses = (from s in GetDBItems<Settings>()
                                      where s.Key == Settings.email && !String.IsNullOrEmpty(s.Value)
                                      select s).ToList();
-                    var min = addresses.Min(s => s.ID);
-                    var primaryEmail = addresses.FirstOrDefault(s => s.ID == min).Value;
-                    return primaryEmail;
+                    if (addresses.Count > 0)
+                    {
+                        var min = addresses.Min(s => s.ID);
+                        var primaryEmail = addresses.FirstOrDefault(s => s.ID == min).Value;
+                        return primaryEmail;
+                    }
+                    return string.Empty;
                 }
             }
         }

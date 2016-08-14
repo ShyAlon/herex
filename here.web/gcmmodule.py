@@ -33,12 +33,40 @@ from gcm import *
 from apns import *
 from apnsdata import *
 from appdata import *
+import endpoints
+from protorpc import message_types
+from protorpc import messages
+from protorpc import remote
+from models import User
 
 appconfig = None
 
-class GCMRegister(webapp2.RequestHandler):
-    def post(self):
-        regid = self.request.get("regId")
+def authorise(id, token):
+    user = User.get_by_id(id)
+    if not user:
+        message = 'No user with the id "%s" exists.' % id
+        raise endpoints.NotFoundException(message)
+    if token != user.token:
+        message = 'Invalid credentials for "%s" exists.' % id
+        raise endpoints.UnauthorizedException(message)
+
+
+GCM_SECURE_RESOURCE = endpoints.ResourceContainer(
+    person = messages.StringField(1),
+    token = messages.StringField(2),
+    regid = messages.StringField(3),
+    tagid = messages.StringField(4))
+
+@endpoints.api(name='gcm', version='v2')
+class GCMApi(remote.Service):
+    @endpoints.method(  GCM_SECURE_RESOURCE,
+                        message_types.VoidMessage,
+                        path='gcmregister/{person}/{token}/{regid}/{tagid}',
+                        http_method='POST',
+                        name='gcm.register')
+    def register(self, request):
+        authorise(request.person, request.token)
+        regid = request.regid
         if not regid:
             self.response.out.write('Must specify regid')
         else:
@@ -46,36 +74,54 @@ class GCMRegister(webapp2.RequestHandler):
             token.gcm_token = regid
             token.enabled = True
             token.put()
+        return message_types.VoidMessage()
 
-class GCMUnregister(webapp2.RequestHandler):
-    def post(self):
-        regid = self.request.get("regId")
+
+    @endpoints.method(  GCM_SECURE_RESOURCE,
+                        message_types.VoidMessage,
+                        path='gcmunregister/{person}/{token}/{regid}/{tagid}',
+                        http_method='POST',
+                        name='gcm.unregister')
+    def unregister(self, request):
+        authorise(request.person, request.token)
+        regid = request.regid
         token = GcmToken.get_or_insert(regid)
         token.enabled = False
         token.put()
+        return message_types.VoidMessage()
 
-class GCMTagHandler(webapp2.RequestHandler):
-    def post(self):
-        tagid = self.request.get("tagid")
-        regid = self.request.get("regid")
+    @endpoints.method(  GCM_SECURE_RESOURCE,
+                        message_types.VoidMessage,
+                        path='gcmtaghandler/{person}/{token}/{regid}/{tagid}',
+                        http_method='POST',
+                        name='gcm.taghandler')
+    def taghandler(self, request):
+        authorise(request.person, request.token)
+        tagid = request.tagid
+        regid = request.regid
         
-        appconfig = AppConfig.get_or_insert("config")
-        
+        appconfig = AppConfig.get_or_insert("config")       
         token = GcmToken.get_or_insert(regid)
+        token.gcm_token = regid
+        token.put()
+        logging.info(token)
         tag = GcmTag.get_or_insert(tagid + regid, tag=tagid, token=token.key)
-    
-    
-    def delete(self):
-        tagid = self.request.get("tagid")
-        regid = self.request.get("regid")
-        
-        appconfig = AppConfig.get_or_insert("config")
-        
-        tag = GcmTag.get_or_insert(tagid + regid)
-        tag.key.delete()
+        logging.info(tag)
+        return message_types.VoidMessage()
 
-app = webapp2.WSGIApplication([
-    ('/gcm/tag', GCMTagHandler),
-    ('/gcm/register', GCMRegister),
-    ('/gcm/unregister', GCMUnregister)
-], debug=True)
+    @endpoints.method(  GCM_SECURE_RESOURCE,
+                        message_types.VoidMessage,
+                        path='gcmdeletetag/{person}/{token}/{regid}/{tagid}',
+                        http_method='DELETE',
+                        name='gcm.deletetag')
+    def delete(self, request):
+        authorise(request.person, request.token)
+        try:
+            tagid = request.tagid
+            regid = request.regid
+            appconfig = AppConfig.get_or_insert("config")
+            tag = GcmTag.get_or_insert(tagid + regid)
+            tag.key.delete()
+            return message_types.VoidMessage()
+        except (IndexError, TypeError):
+            raise endpoints.NotFoundException('tag %s not found.' % (request.id,))

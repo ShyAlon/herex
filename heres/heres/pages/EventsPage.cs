@@ -107,6 +107,7 @@ namespace heres.pages
                  {
                      var dialer = DependencyService.Get<ICalendar>();
                      var res = dialer.GetEvents();
+                     res = res ?? new List<Meeting>();
                      // End time serves to remove all day events
                      var db = new Database();
                      foreach (var item in res)
